@@ -151,8 +151,8 @@
 | Redis rate limit | Atomic counter with TTL, fail-open | `app/services/rate_limit.py`, `app/core/config.py` | done |
 | Request ID and logging | Middleware, JSON/structured stdlib logging, rotating file | `app/middleware/request_context.py`, `app/core/logging.py` | done |
 | Error contract | Typed app exceptions and global handlers | `app/core/exceptions.py`, `app/main.py` | done |
-| Health/readiness | Separate live/ready handlers and dependency checks | `app/api/v1/endpoints/health.py` | planned |
-| Protected statistics | Aggregate SQL queries and constant-time API-key check; hidden when disabled | `app/api/v1/endpoints/metrics.py`, `app/repositories/metrics.py`, `app/core/security.py` | planned |
+| Health/readiness | Separate live/ready handlers and dependency checks | `app/api/v1/endpoints/health.py` | done |
+| Protected statistics | Aggregate SQL queries and constant-time API-key check; hidden when disabled | `app/api/v1/endpoints/metrics.py`, `app/repositories/metrics.py`, `app/core/security.py` | done |
 | CORS and OpenAPI | Settings-driven middleware and FastAPI metadata/examples | `app/core/config.py`, `app/main.py`, endpoint schemas | planned |
 | Central configuration | `BaseSettings`, env profiles/validation, safe example | `app/core/config.py`, `.env.example` | done |
 | Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | planned |

@@ -22,6 +22,7 @@ from app.middleware.request_context import (
     request_id_context,
 )
 from app.services.email import EmailService
+from app.services.health import HealthService
 from app.services.rate_limit import RedisRateLimiter
 
 
@@ -63,6 +64,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             owner_email=str(
                 application_settings.smtp_owner_email or "disabled@example.invalid"
             ),
+        )
+        application.state.health_service = HealthService(
+            engine,
+            redis_client,
+            application_settings,
         )
         yield
         await ai_http_client.aclose()
