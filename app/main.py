@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from redis.asyncio import Redis
 from starlette.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
@@ -16,6 +17,7 @@ from app.middleware.request_context import (
     RequestContextMiddleware,
     request_id_context,
 )
+from app.services.rate_limit import RedisRateLimiter
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -29,9 +31,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         engine = create_database_engine(application_settings)
+        redis_client = Redis.from_url(
+            application_settings.redis_url,
+            decode_responses=True,
+        )
         application.state.engine = engine
         application.state.session_factory = create_session_factory(engine)
+        application.state.redis = redis_client
+        application.state.rate_limiter = RedisRateLimiter(
+            redis_client,
+            limit=application_settings.rate_limit_requests,
+            window_seconds=application_settings.rate_limit_window_seconds,
+        )
         yield
+        await redis_client.aclose()
         await engine.dispose()
 
     application = FastAPI(
