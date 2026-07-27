@@ -8,9 +8,9 @@
 ограничения. Если требования различаются, принимается более строгий вариант из
 расширенного ТЗ при сохранении функционального смысла PDF.
 
-Статусы в таблице: `planned` — запланировано; `optional` — дополнительное;
-`decision` — требуется зафиксированное архитектурное решение; `done` —
-выполнено.
+Статусы в таблице: `planned` — запланировано; `in progress` — частично
+реализовано; `optional` — дополнительное; `decision` — требуется
+зафиксированное архитектурное решение; `done` — выполнено.
 
 ## 2. Обязательные требования
 
@@ -157,7 +157,7 @@
 | Central configuration | `BaseSettings`, env profiles/validation, safe example | `app/core/config.py`, `.env.example` | planned |
 | Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | planned |
 | Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | planned |
-| Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | planned |
+| Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | in progress |
 | Documentation and API examples | README, focused docs, Bruno collection | `README.md`, `docs/`, `bruno/` | planned |
 | Deployment readiness | Platform-neutral container guide and env/migration/health instructions | `docs/DEPLOYMENT.md`, `README.md` | planned |
 | Prometheus metrics | Не входит в обязательный scope | возможный `app/api/metrics.py` | optional |
