@@ -20,9 +20,15 @@ from app.db.models.contact_request import (
 from app.db.session import create_session_factory
 from app.integrations.ai.base import AIProvider
 from app.integrations.ai.fallback import FallbackAIProvider
+from app.integrations.email.disabled import DisabledEmailProvider
 from app.main import create_app
 from app.schemas.ai import AIClassification
-from app.services.dependencies import get_ai_provider, get_rate_limiter
+from app.services.dependencies import (
+    get_ai_provider,
+    get_email_service,
+    get_rate_limiter,
+)
+from app.services.email import EmailService
 from app.services.rate_limit import (
     RateLimitExceededError,
     RateLimitResult,
@@ -55,6 +61,13 @@ class StaticAIProvider:
         )
 
 
+def disabled_email_service() -> EmailService:
+    return EmailService(
+        DisabledEmailProvider(),
+        owner_email="owner@example.com",
+    )
+
+
 async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
@@ -62,7 +75,7 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
     session_factory = create_session_factory(engine)
 
     async def override_session() -> AsyncIterator[AsyncSession]:
-        async with session_factory.begin() as session:
+        async with session_factory() as session:
             yield session
 
     settings = Settings(
@@ -71,6 +84,7 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
         ip_hash_salt="integration-test-salt",
     )
     application = create_app(settings)
+    application.state.session_factory = session_factory
     application.dependency_overrides[get_session] = override_session
     application.dependency_overrides[get_rate_limiter] = lambda: cast(
         RedisRateLimiter,
@@ -80,6 +94,7 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
         AIProvider,
         StaticAIProvider(),
     )
+    application.dependency_overrides[get_email_service] = disabled_email_service
 
     async with AsyncClient(
         transport=ASGITransport(app=application),
@@ -107,7 +122,7 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
     assert stored.name == "Ada Lovelace"
     assert stored.phone == "+442079460123"
     assert stored.email == "ada@example.com"
-    assert stored.processing_status is ProcessingStatus.PROCESSING
+    assert stored.processing_status is ProcessingStatus.COMPLETED
     assert stored.category is ContactCategory.JOB_OFFER
     assert stored.ai_provider_status is ProviderStatus.AVAILABLE
     assert stored.ai_summary == "A job opportunity."
@@ -136,6 +151,7 @@ async def test_contact_endpoint_returns_validation_error(tmp_path: Path) -> None
         AIProvider,
         StaticAIProvider(),
     )
+    application.dependency_overrides[get_email_service] = disabled_email_service
 
     async with AsyncClient(
         transport=ASGITransport(app=application),
@@ -177,6 +193,7 @@ async def test_contact_endpoint_returns_429_when_rate_limit_is_exceeded(
         AIProvider,
         StaticAIProvider(),
     )
+    application.dependency_overrides[get_email_service] = disabled_email_service
 
     async with AsyncClient(
         transport=ASGITransport(app=application),
@@ -203,7 +220,7 @@ async def test_contact_is_accepted_when_ai_uses_fallback(tmp_path: Path) -> None
     session_factory = create_session_factory(engine)
 
     async def override_session() -> AsyncIterator[AsyncSession]:
-        async with session_factory.begin() as session:
+        async with session_factory() as session:
             yield session
 
     settings = Settings(
@@ -212,12 +229,14 @@ async def test_contact_is_accepted_when_ai_uses_fallback(tmp_path: Path) -> None
         ip_hash_salt="integration-test-salt",
     )
     application = create_app(settings)
+    application.state.session_factory = session_factory
     application.dependency_overrides[get_session] = override_session
     application.dependency_overrides[get_rate_limiter] = lambda: cast(
         RedisRateLimiter,
         AllowingRateLimiter(),
     )
     application.dependency_overrides[get_ai_provider] = FallbackAIProvider
+    application.dependency_overrides[get_email_service] = disabled_email_service
 
     async with AsyncClient(
         transport=ASGITransport(app=application),

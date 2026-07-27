@@ -17,7 +17,7 @@ class ContactService:
         self.repository = repository
         self.ai_provider = ai_provider
 
-    async def accept(
+    async def create(
         self,
         contact: ContactCreate,
         *,
@@ -25,7 +25,7 @@ class ContactService:
         user_agent: str | None,
     ) -> ContactRequest:
         """Persist a contact in the initial processing state."""
-        stored_contact = await self.repository.create(
+        return await self.repository.create(
             name=contact.name,
             phone=contact.phone,
             email=str(contact.email),
@@ -33,9 +33,15 @@ class ContactService:
             source_ip_hash=source_ip_hash,
             user_agent=user_agent[:512] if user_agent else None,
         )
-        classification = await self.ai_provider.classify(contact.comment)
+
+    async def classify(
+        self,
+        stored_contact: ContactRequest,
+        comment: str,
+    ) -> None:
+        """Classify a stored contact and persist the safe result."""
+        classification = await self.ai_provider.classify(comment)
         await self.repository.save_ai_classification(
             stored_contact,
             classification,
         )
-        return stored_contact

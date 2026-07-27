@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import AnyHttpUrl, Field, PositiveInt, model_validator
+from pydantic import AnyHttpUrl, EmailStr, Field, PositiveInt, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEVELOPMENT_IP_HASH_SALT = "development-only-change-me"
@@ -52,8 +52,8 @@ class Settings(BaseSettings):
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str | None = None
     smtp_password: str | None = None
-    smtp_from_email: str | None = None
-    smtp_owner_email: str | None = None
+    smtp_from_email: EmailStr | None = None
+    smtp_owner_email: EmailStr | None = None
     smtp_use_tls: bool = True
 
     metrics_api_key: str | None = None
@@ -76,6 +76,10 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SMTP_HOST, SMTP_FROM_EMAIL and SMTP_OWNER_EMAIL are required "
                 "when email is enabled"
+            )
+        if bool(self.smtp_username) != bool(self.smtp_password):
+            raise ValueError(
+                "SMTP_USERNAME and SMTP_PASSWORD must be configured together"
             )
 
         if self.app_env == "production":

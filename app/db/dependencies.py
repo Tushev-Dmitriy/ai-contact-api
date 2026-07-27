@@ -11,5 +11,5 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     session_factory: async_sessionmaker[AsyncSession] = (
         request.app.state.session_factory
     )
-    async with session_factory.begin() as session:
+    async with session_factory() as session:
         yield session

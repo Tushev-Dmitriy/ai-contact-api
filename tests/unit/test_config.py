@@ -33,6 +33,11 @@ def test_email_configuration_is_required_only_when_enabled() -> None:
         Settings(app_env="test", email_enabled=True)
 
 
+def test_smtp_credentials_must_be_configured_as_a_pair() -> None:
+    with pytest.raises(ValidationError, match="configured together"):
+        Settings(app_env="test", smtp_username="user")
+
+
 def test_production_rejects_development_ip_hash_salt() -> None:
     with pytest.raises(ValidationError, match="IP_HASH_SALT"):
         Settings(

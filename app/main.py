@@ -14,11 +14,13 @@ from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.session import create_database_engine, create_session_factory
 from app.integrations.ai.factory import create_ai_provider
+from app.integrations.email.factory import create_email_provider
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.request_context import (
     RequestContextMiddleware,
     request_id_context,
 )
+from app.services.email import EmailService
 from app.services.rate_limit import RedisRateLimiter
 
 
@@ -52,6 +54,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.ai_provider = create_ai_provider(
             application_settings,
             ai_http_client,
+        )
+        email_provider = create_email_provider(application_settings)
+        application.state.email_provider = email_provider
+        application.state.email_service = EmailService(
+            email_provider,
+            owner_email=str(
+                application_settings.smtp_owner_email or "disabled@example.invalid"
+            ),
         )
         yield
         await ai_http_client.aclose()

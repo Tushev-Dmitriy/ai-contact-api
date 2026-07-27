@@ -1,9 +1,9 @@
 """Contact request endpoint."""
 
-from typing import Annotated
+from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.dependencies import get_session
@@ -12,7 +12,12 @@ from app.middleware.request_context import client_ip
 from app.repositories.contact import ContactRequestRepository
 from app.schemas.contact import ContactAccepted, ContactCreate
 from app.services.contact import ContactService
-from app.services.dependencies import get_ai_provider, get_rate_limiter
+from app.services.dependencies import (
+    get_ai_provider,
+    get_email_service,
+    get_rate_limiter,
+)
+from app.services.email import EmailService, process_contact_emails
 from app.services.rate_limit import RateLimitExceededError, RedisRateLimiter
 from app.utils.pii import hash_ip
 
@@ -29,9 +34,11 @@ router = APIRouter(prefix="/contact", tags=["contact"])
 async def create_contact(
     payload: ContactCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
     rate_limiter: Annotated[RedisRateLimiter, Depends(get_rate_limiter)],
     ai_provider: Annotated[AIProvider, Depends(get_ai_provider)],
+    email_service: Annotated[EmailService, Depends(get_email_service)],
 ) -> ContactAccepted:
     """Validate, normalize, and persist a new contact request."""
     settings: Settings = request.app.state.settings
@@ -51,10 +58,24 @@ async def create_contact(
             ) from error
 
     service = ContactService(ContactRequestRepository(session), ai_provider)
-    contact = await service.accept(
+    contact = await service.create(
         payload,
         source_ip_hash=source_ip_hash,
         user_agent=request.headers.get("user-agent"),
+    )
+    await session.commit()
+    await service.classify(contact, payload.comment)
+    await session.commit()
+
+    session_factory = cast(
+        async_sessionmaker[AsyncSession],
+        request.app.state.session_factory,
+    )
+    background_tasks.add_task(
+        process_contact_emails,
+        contact.id,
+        session_factory,
+        email_service,
     )
     return ContactAccepted(
         request_id=contact.id,
