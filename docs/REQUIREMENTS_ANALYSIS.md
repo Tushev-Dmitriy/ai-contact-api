@@ -155,7 +155,7 @@
 | Protected statistics | Aggregate SQL queries and constant-time API-key check; hidden when disabled | `app/api/v1/endpoints/metrics.py`, `app/repositories/metrics.py`, `app/core/security.py` | done |
 | CORS and OpenAPI | Settings-driven middleware and FastAPI metadata/examples | `app/core/config.py`, `app/main.py`, endpoint schemas | planned |
 | Central configuration | `BaseSettings`, env profiles/validation, safe example | `app/core/config.py`, `.env.example` | done |
-| Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | planned |
+| Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | done |
 | Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | planned |
 | Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | in progress |
 | Documentation and API examples | README, focused docs, Bruno collection | `README.md`, `docs/`, `bruno/` | planned |

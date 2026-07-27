@@ -4,7 +4,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import AnyHttpUrl, EmailStr, Field, PositiveInt, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    EmailStr,
+    Field,
+    PositiveInt,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEVELOPMENT_IP_HASH_SALT = "development-only-change-me"
@@ -57,6 +64,24 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
 
     metrics_api_key: str | None = None
+
+    @field_validator(
+        "ai_api_key",
+        "ai_model",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from_email",
+        "smtp_owner_email",
+        "metrics_api_key",
+        mode="before",
+    )
+    @classmethod
+    def empty_optional_values_are_none(cls, value: object) -> object:
+        """Treat empty Compose/environment values as disabled configuration."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @model_validator(mode="after")
     def validate_environment(self) -> Self:

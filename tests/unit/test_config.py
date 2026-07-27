@@ -38,6 +38,23 @@ def test_smtp_credentials_must_be_configured_as_a_pair() -> None:
         Settings(app_env="test", smtp_username="user")
 
 
+def test_empty_optional_environment_values_are_disabled() -> None:
+    settings = Settings(
+        app_env="test",
+        ai_api_key="",
+        ai_model=" ",
+        smtp_from_email="",
+        smtp_owner_email=" ",
+        metrics_api_key="",
+    )
+
+    assert settings.ai_api_key is None
+    assert settings.ai_model is None
+    assert settings.smtp_from_email is None
+    assert settings.smtp_owner_email is None
+    assert settings.metrics_api_key is None
+
+
 def test_production_rejects_development_ip_hash_salt() -> None:
     with pytest.raises(ValidationError, match="IP_HASH_SALT"):
         Settings(
