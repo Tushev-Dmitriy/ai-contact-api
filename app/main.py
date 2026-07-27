@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from redis.asyncio import Redis
 from starlette.responses import JSONResponse
@@ -12,6 +13,7 @@ from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.session import create_database_engine, create_session_factory
+from app.integrations.ai.factory import create_ai_provider
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.request_context import (
     RequestContextMiddleware,
@@ -35,6 +37,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             application_settings.redis_url,
             decode_responses=True,
         )
+        ai_http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(application_settings.ai_timeout_seconds),
+        )
         application.state.engine = engine
         application.state.session_factory = create_session_factory(engine)
         application.state.redis = redis_client
@@ -43,7 +48,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             limit=application_settings.rate_limit_requests,
             window_seconds=application_settings.rate_limit_window_seconds,
         )
+        application.state.ai_http_client = ai_http_client
+        application.state.ai_provider = create_ai_provider(
+            application_settings,
+            ai_http_client,
+        )
         yield
+        await ai_http_client.aclose()
         await redis_client.aclose()
         await engine.dispose()
 

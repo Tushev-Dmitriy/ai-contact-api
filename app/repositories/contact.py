@@ -5,6 +5,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.contact_request import ContactRequest
+from app.schemas.ai import AIClassification
 
 
 class ContactRequestRepository:
@@ -40,3 +41,16 @@ class ContactRequestRepository:
     async def get_by_id(self, contact_id: uuid.UUID) -> ContactRequest | None:
         """Return one contact request by primary key."""
         return await self.session.get(ContactRequest, contact_id)
+
+    async def save_ai_classification(
+        self,
+        contact: ContactRequest,
+        classification: AIClassification,
+    ) -> None:
+        """Apply a validated AI result to a tracked contact."""
+        contact.category = classification.category
+        contact.sentiment = classification.sentiment
+        contact.urgency = classification.urgency
+        contact.ai_summary = classification.summary
+        contact.ai_provider_status = classification.provider_status
+        await self.session.flush()

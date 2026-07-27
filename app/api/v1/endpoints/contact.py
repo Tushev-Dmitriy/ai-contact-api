@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.db.dependencies import get_session
+from app.integrations.ai.base import AIProvider
 from app.middleware.request_context import client_ip
 from app.repositories.contact import ContactRequestRepository
 from app.schemas.contact import ContactAccepted, ContactCreate
 from app.services.contact import ContactService
-from app.services.dependencies import get_rate_limiter
+from app.services.dependencies import get_ai_provider, get_rate_limiter
 from app.services.rate_limit import RateLimitExceededError, RedisRateLimiter
 from app.utils.pii import hash_ip
 
@@ -30,6 +31,7 @@ async def create_contact(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     rate_limiter: Annotated[RedisRateLimiter, Depends(get_rate_limiter)],
+    ai_provider: Annotated[AIProvider, Depends(get_ai_provider)],
 ) -> ContactAccepted:
     """Validate, normalize, and persist a new contact request."""
     settings: Settings = request.app.state.settings
@@ -48,10 +50,13 @@ async def create_contact(
                 headers={"Retry-After": str(error.retry_after_seconds)},
             ) from error
 
-    service = ContactService(ContactRequestRepository(session))
+    service = ContactService(ContactRequestRepository(session), ai_provider)
     contact = await service.accept(
         payload,
         source_ip_hash=source_ip_hash,
         user_agent=request.headers.get("user-agent"),
     )
-    return ContactAccepted(request_id=contact.id)
+    return ContactAccepted(
+        request_id=contact.id,
+        category=contact.category.value if contact.category else None,
+    )

@@ -146,7 +146,7 @@
 | Анализ и план | Сопоставить PDF и расширенное ТЗ, зафиксировать решения | `docs/REQUIREMENTS_ANALYSIS.md`, `docs/IMPLEMENTATION_PLAN.md` | done |
 | Contact API и validation | Pydantic v2 schema, FastAPI endpoint, orchestration service | `app/schemas/contact.py`, `app/api/v1/endpoints/contact.py`, `app/services/contact.py` | in progress |
 | Persistence | Async SQLAlchemy repository, PostgreSQL model, Alembic migration | `app/db/models/contact_request.py`, `app/repositories/contact.py`, `alembic/` | done |
-| AI classification/fallback | Protocol, httpx provider, validated JSON, fallback | `app/integrations/ai/`, `app/schemas/ai.py` | planned |
+| AI classification/fallback | Protocol, httpx provider, validated JSON, fallback | `app/integrations/ai/`, `app/schemas/ai.py` | done |
 | Email notifications | SMTP and disabled providers, BackgroundTasks, safe messages | `app/integrations/email/`, `app/services/contact.py` | planned |
 | Redis rate limit | Atomic counter with TTL, fail-open | `app/services/rate_limit.py`, `app/core/config.py` | done |
 | Request ID and logging | Middleware, JSON/structured stdlib logging, rotating file | `app/middleware/request_context.py`, `app/core/logging.py` | done |
