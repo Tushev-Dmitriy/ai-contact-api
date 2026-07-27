@@ -1,0 +1,15 @@
+"""FastAPI database dependencies."""
+
+from collections.abc import AsyncIterator
+
+from fastapi import Request
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """Provide one transaction-scoped session per request."""
+    session_factory: async_sessionmaker[AsyncSession] = (
+        request.app.state.session_factory
+    )
+    async with session_factory.begin() as session:
+        yield session

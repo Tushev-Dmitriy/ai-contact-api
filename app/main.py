@@ -1,11 +1,16 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from starlette.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
+from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
+from app.db.session import create_database_engine, create_session_factory
 from app.middleware.body_limit import BodyLimitMiddleware
 from app.middleware.request_context import (
     RequestContextMiddleware,
@@ -21,10 +26,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application_settings = settings or get_settings()
     configure_logging(application_settings)
 
+    @asynccontextmanager
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        engine = create_database_engine(application_settings)
+        application.state.engine = engine
+        application.state.session_factory = create_session_factory(engine)
+        yield
+        await engine.dispose()
+
     application = FastAPI(
         title="AI Contact API",
         description="API for portfolio contact requests with AI classification.",
         version="0.1.0",
+        lifespan=lifespan,
     )
 
     async def request_too_large(
@@ -57,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         trust_proxy_headers=application_settings.trust_proxy_headers,
     )
     application.state.settings = application_settings
+    application.include_router(api_v1_router)
     return application
 
 
