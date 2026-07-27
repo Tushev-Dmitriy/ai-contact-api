@@ -11,6 +11,7 @@ from starlette.types import Receive, Scope, Send
 
 from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
+from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.db.session import create_database_engine, create_session_factory
 from app.integrations.ai.factory import create_ai_provider
@@ -106,6 +107,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.state.settings = application_settings
     application.include_router(api_v1_router)
+    register_exception_handlers(application, application_settings)
     return application
 
 

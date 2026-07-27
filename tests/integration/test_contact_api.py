@@ -169,6 +169,9 @@ async def test_contact_endpoint_returns_validation_error(tmp_path: Path) -> None
 
     assert response.status_code == 422
     assert response.headers["X-Request-ID"]
+    assert response.json()["error"]["code"] == "validation_error"
+    assert response.json()["error"]["request_id"] == response.headers["X-Request-ID"]
+    assert response.json()["error"]["details"]
 
 
 async def test_contact_endpoint_returns_429_when_rate_limit_is_exceeded(
@@ -211,6 +214,8 @@ async def test_contact_endpoint_returns_429_when_rate_limit_is_exceeded(
 
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "123"
+    assert response.json()["error"]["code"] == "rate_limit_exceeded"
+    assert response.json()["error"]["request_id"] == response.headers["X-Request-ID"]
 
 
 async def test_contact_is_accepted_when_ai_uses_fallback(tmp_path: Path) -> None:

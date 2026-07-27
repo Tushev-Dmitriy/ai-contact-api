@@ -2,7 +2,7 @@
 
 from typing import Annotated, cast
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
@@ -18,7 +18,7 @@ from app.services.dependencies import (
     get_rate_limiter,
 )
 from app.services.email import EmailService, process_contact_emails
-from app.services.rate_limit import RateLimitExceededError, RedisRateLimiter
+from app.services.rate_limit import RedisRateLimiter
 from app.utils.pii import hash_ip
 
 router = APIRouter(prefix="/contact", tags=["contact"])
@@ -48,14 +48,7 @@ async def create_contact(
     )
     source_ip_hash = hash_ip(source_ip, salt=settings.ip_hash_salt)
     if source_ip_hash:
-        try:
-            await rate_limiter.enforce(source_ip_hash)
-        except RateLimitExceededError as error:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Contact request rate limit exceeded",
-                headers={"Retry-After": str(error.retry_after_seconds)},
-            ) from error
+        await rate_limiter.enforce(source_ip_hash)
 
     service = ContactService(ContactRequestRepository(session), ai_provider)
     contact = await service.create(

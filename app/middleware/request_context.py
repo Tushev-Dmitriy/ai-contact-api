@@ -60,6 +60,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         call_next: RequestResponseEndpoint,
     ) -> Response:
         request_id = safe_request_id(request.headers.get(REQUEST_ID_HEADER))
+        request.state.request_id = request_id
         token = request_id_context.set(request_id)
         started_at = time.perf_counter()
         status_code = 500
