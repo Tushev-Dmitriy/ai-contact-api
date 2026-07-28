@@ -1,44 +1,87 @@
 # AI Contact API
 
-Backend-сервис формы обратной связи для портфолио. Принимает обращение,
-нормализует и сохраняет его, классифицирует текст через OpenAI-compatible API
-или безопасный fallback и в фоне отправляет два email-уведомления.
+Backend-сервис формы обратной связи для сайта-портфолио. Он принимает и
+валидирует обращение, сохраняет его в PostgreSQL, запускает локальный
+AI-анализ, отправляет два email через SMTP и возвращает результат обработки в
+административный интерфейс.
 
 ## Возможности
 
-- точный маршрут из задания: `POST /api/contact`;
-- строгая Pydantic-валидация и ограничение тела запроса;
-- PostgreSQL, async SQLAlchemy и Alembic;
-- Redis rate limit: по умолчанию 5 запросов за 15 минут;
-- заменяемые AI- и email-провайдеры;
-- единый JSON-контракт ошибок и `X-Request-ID`;
-- health/readiness, защищённая продуктовая статистика, CORS allowlist;
-- Docker Compose, Postman, pytest, Ruff, строгий mypy и GitHub Actions.
+- `POST /api/contact` с валидацией имени, телефона, email и комментария;
+- классификация обращения, sentiment, urgency и краткое summary;
+- fallback, при котором сбой AI не мешает принять обращение;
+- письмо владельцу сайта и подтверждение пользователю;
+- Redis rate limit: 5 обращений за 15 минут с одного IP по умолчанию;
+- структурированные логи в stdout и ротируемый файл;
+- единый формат ошибок и `X-Request-ID`;
+- health/readiness и защищённая статистика;
+- Swagger, ReDoc, Postman, Docker Compose и GitHub Actions;
+- frontend для отправки формы и просмотра статусов обработки.
 
 ## Стек
 
-Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2 (async), PostgreSQL, Alembic,
-Redis, httpx, SMTP, uv, pytest, Ruff, mypy и Docker Compose.
+- Python 3.12, FastAPI, Pydantic v2;
+- async SQLAlchemy 2, Alembic, PostgreSQL;
+- Redis;
+- httpx и OpenAI-compatible API;
+- llama.cpp и локальная `Qwen2.5-1.5B-Instruct Q4_K_M`;
+- SMTP и Mailpit;
+- uv, pytest, Ruff, mypy;
+- Docker и Docker Compose.
 
-## Архитектура и поток запроса
+FastAPI выбран из-за встроенной OpenAPI-документации и удобной асинхронной
+модели. PostgreSQL и Redis не обязательны по исходному заданию, но позволяют
+показать транзакционное хранение, миграции и атомарный rate limit.
 
-Проект — модульный монолит со слоями API → services → repositories →
-database/integrations. Подробности находятся в
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## Архитектура
 
-`POST /api/contact` выполняет:
+Проект реализован как модульный монолит:
 
-1. ограничение размера и валидацию/нормализацию;
-2. Redis rate limit по HMAC-хэшу IP;
-3. сохранение обращения со статусом `processing`;
-4. немедленный возврат `202 Accepted`;
-5. AI-классификацию или детерминированный fallback в `BackgroundTasks`;
-6. сохранение результата и отправку двух email;
-7. обновление AI/email-статусов в БД, которые интерфейс опрашивает каждые 2 секунды.
+```text
+HTTP request
+  -> middleware
+  -> API endpoint + Pydantic schema
+  -> service
+  -> repository -> PostgreSQL
+  -> integrations -> Redis / llama.cpp / SMTP
+```
 
-## Быстрый запуск через Docker Compose
+Основные каталоги:
 
-Требуются Docker и Docker Compose.
+```text
+app/
+  api/            HTTP-маршруты
+  core/           конфигурация, ошибки, logging, security
+  db/             SQLAlchemy и подключения
+  integrations/   AI- и email-провайдеры
+  middleware/     request ID, body limit, request logging
+  repositories/   запросы к БД
+  schemas/        Pydantic-схемы
+  services/       сценарии обработки
+  static/         тестовый frontend
+alembic/          миграции
+tests/            unit и integration/API тесты
+```
+
+Поток `POST /api/contact`:
+
+1. Middleware ограничивает размер тела и назначает request ID.
+2. Pydantic валидирует и нормализует поля.
+3. Redis проверяет rate limit по HMAC-хэшу IP.
+4. Обращение сохраняется со статусом `processing`.
+5. API возвращает `202 Accepted`.
+6. `BackgroundTasks` выполняет AI-анализ и сохраняет результат.
+7. Владелец и пользователь получают независимые SMTP-письма.
+8. Статусы меняются на `completed` или `partial`; frontend опрашивает API раз в
+   две секунды.
+
+Подробная схема находится в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Запуск через Docker Compose
+
+Нужны Docker, Docker Compose и около 1.1 ГБ места для GGUF-модели.
+
+Linux/macOS:
 
 ```bash
 cp .env.example .env
@@ -46,43 +89,41 @@ make model
 docker compose up --build
 ```
 
-В PowerShell:
+PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-./scripts/download-model.ps1
+.\scripts\download-model.ps1
 docker compose up --build
 ```
 
-Compose поднимает PostgreSQL, Redis, локальную AI-модель llama.cpp и SMTP-сервер
-Mailpit, выполняет `alembic upgrade head` отдельным контейнером и запускает
-приложение. Перед первым запуском скачайте модель `Qwen2.5-1.5B-Instruct`
-командой `make model` (PowerShell: `./scripts/download-model.ps1`);
-последующие
-запуски используют Docker volume.
+Модель скачивается один раз в исключённый из Git каталог `models/`.
+Compose поднимает API, PostgreSQL, Redis, llama.cpp, Mailpit и отдельный
+контейнер миграций.
 
-- интерфейс формы: `http://localhost:8000`;
-- Swagger UI: `http://localhost:8000/docs`;
-- перехваченные SMTP-письма: `http://localhost:8025`.
+После запуска:
 
-Список обращений защищён HTTP Basic. Локальные значения по умолчанию:
-`admin` / `admin`; для изменения задайте `ADMIN_USERNAME` и `ADMIN_PASSWORD`.
+- frontend: <http://localhost:8000>;
+- Swagger UI: <http://localhost:8000/docs>;
+- ReDoc: <http://localhost:8000/redoc>;
+- Mailpit: <http://localhost:8025>;
+- readiness: <http://localhost:8000/api/health/ready>.
 
-Mailpit не требует регистрации и не отправляет письма во внешний интернет:
-оба уведомления можно безопасно посмотреть в его веб-интерфейсе.
+Для просмотра обращений на frontend используйте `admin` / `admin`. Эти
+значения предназначены только для локального запуска.
 
-Проверка:
+Остановка:
 
 ```bash
-curl http://localhost:8000/api/health/ready
+docker compose down
 ```
 
-Остановка: `docker compose down`. Данные сохраняются в именованных volumes;
-для полного локального удаления данных применяется `docker compose down -v`.
+PostgreSQL и Redis используют именованные volumes. Удалить локальные данные
+можно командой `docker compose down -v`.
 
-## Локальный запуск
+## Локальный запуск без Docker
 
-Нужны Python 3.12, [uv](https://docs.astral.sh/uv/), PostgreSQL и Redis.
+Нужны Python 3.12, uv, PostgreSQL и Redis:
 
 ```bash
 cp .env.example .env
@@ -91,38 +132,41 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
-PowerShell использует `Copy-Item .env.example .env`; остальные команды те же.
-В `.env` нужно заменить `DATABASE_URL` и `REDIS_URL` под локальные сервисы.
+В `.env` укажите доступные `DATABASE_URL` и `REDIS_URL`. AI и email можно
+оставить выключенными: приложение использует fallback и disabled email
+provider. Для полноценной проверки удобнее Docker Compose.
 
-## Конфигурация
+## Переменные окружения
 
-Все настройки читаются из environment или `.env`.
+Настройки читаются централизованно через `pydantic-settings`.
 
-| Переменная | Назначение | Значение по умолчанию |
+| Переменная | Назначение | Локальное значение |
 |---|---|---|
-| `APP_ENV` | `development`, `test` или `production` | `development` |
-| `APP_HOST`, `APP_PORT` | адрес и порт приложения | `0.0.0.0`, `8000` |
-| `APP_LOG_LEVEL`, `APP_LOG_FILE` | уровень и rotating-файл логов | `INFO`, `logs/app.log` |
-| `REQUEST_BODY_MAX_BYTES` | максимум тела запроса | `16384` |
-| `IP_HASH_SALT` | секрет HMAC для IP | только dev-значение |
-| `TRUST_PROXY_HEADERS` | доверять `X-Forwarded-For` | `false` |
-| `CORS_ALLOWED_ORIGINS` | JSON-массив разрешённых origins | localhost 3000/5173 |
-| `DATABASE_URL` | DSN `postgresql+asyncpg` | локальная PostgreSQL |
+| `APP_ENV` | `development`, `test`, `production` | `development` |
+| `APP_HOST`, `APP_PORT` | адрес и порт API | `0.0.0.0`, `8000` |
+| `APP_LOG_LEVEL`, `APP_LOG_FILE` | уровень и файл логов | `INFO`, `logs/app.log` |
+| `REQUEST_BODY_MAX_BYTES` | максимальный размер запроса | `16384` |
+| `IP_HASH_SALT` | HMAC-соль для IP | заменить в production |
+| `TRUST_PROXY_HEADERS` | доверять proxy-заголовкам | `false` |
+| `CORS_ALLOWED_ORIGINS` | разрешённые origins | localhost |
+| `DATABASE_URL` | PostgreSQL DSN | локальная БД |
 | `REDIS_URL` | Redis DSN | `redis://localhost:6379/0` |
-| `RATE_LIMIT_REQUESTS` | лимит обращений | `5` |
-| `RATE_LIMIT_WINDOW_SECONDS` | окно лимита, секунды | `900` |
-| `AI_ENABLED` | включить внешний AI | `false` |
-| `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | OpenAI-compatible provider | provider выключен |
-| `AI_TIMEOUT_SECONDS` | timeout AI-запроса | `10` |
-| `EMAIL_ENABLED` | включить SMTP | `false` |
-| `SMTP_HOST`, `SMTP_PORT` | SMTP endpoint | порт `587` |
-| `SMTP_USERNAME`, `SMTP_PASSWORD` | SMTP-аутентификация | пусто |
-| `SMTP_FROM_EMAIL`, `SMTP_OWNER_EMAIL` | отправитель и владелец | пусто |
+| `RATE_LIMIT_REQUESTS` | число запросов | `5` |
+| `RATE_LIMIT_WINDOW_SECONDS` | окно rate limit | `900` |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | доступ к `/api/contacts` | `admin`, `admin` |
+| `AI_ENABLED` | включить AI provider | `false` вне Compose |
+| `AI_API_KEY` | ключ OpenAI-compatible provider | пусто вне Compose |
+| `AI_BASE_URL`, `AI_MODEL` | endpoint и модель | задаются Compose |
+| `AI_TIMEOUT_SECONDS` | timeout AI | `10` |
+| `EMAIL_ENABLED` | включить email | `false` вне Compose |
+| `SMTP_HOST`, `SMTP_PORT` | SMTP endpoint | пусто, `587` |
+| `SMTP_USERNAME`, `SMTP_PASSWORD` | SMTP credentials | пусто |
+| `SMTP_FROM_EMAIL`, `SMTP_OWNER_EMAIL` | отправитель и получатель | пусто |
 | `SMTP_USE_TLS` | STARTTLS | `true` |
-| `METRICS_API_KEY` | ключ статистики | endpoint скрыт |
+| `METRICS_API_KEY` | доступ к статистике | endpoint скрыт без ключа |
 
-При `APP_ENV=production` сервис запрещает dev DSN, короткий или стандартный
-`IP_HASH_SALT`. Секреты нельзя коммитить; `.env.example` содержит только шаблон.
+`.env` не коммитится. При `APP_ENV=production` приложение запрещает dev DSN,
+короткую HMAC-соль и стандартные `admin` / `admin`.
 
 ## Миграции
 
@@ -132,43 +176,43 @@ uv run alembic current
 uv run alembic downgrade -1
 ```
 
-Создание новой миграции после изменения моделей:
+Новая миграция:
 
 ```bash
 uv run alembic revision --autogenerate -m "describe change"
 ```
 
-В production миграция должна выполняться отдельным release/pre-deploy шагом.
-
 ## API
 
-| Метод | Маршрут | Назначение |
-|---|---|---|
-| `POST` | `/api/contact` | создать обращение |
-| `GET` | `/api/contacts` | последние 100 обращений и результаты обработки; HTTP Basic |
-| `GET` | `/api/health` | сводное состояние |
-| `GET` | `/api/health/live` | liveness |
-| `GET` | `/api/health/ready` | readiness |
-| `GET` | `/api/metrics` | защищённая продуктовая статистика |
+| Метод | Маршрут | Назначение | Доступ |
+|---|---|---|---|
+| `POST` | `/api/contact` | принять обращение | публичный |
+| `GET` | `/api/contacts` | последние 100 обращений | HTTP Basic |
+| `GET` | `/api/health` | состояние зависимостей | публичный |
+| `GET` | `/api/health/live` | liveness | публичный |
+| `GET` | `/api/health/ready` | readiness | публичный |
+| `GET` | `/api/metrics` | статистика обращений | `X-API-Key` |
 
-Swagger UI: `http://localhost:8000/docs`; ReDoc:
-`http://localhost:8000/redoc`; схема: `http://localhost:8000/openapi.json`.
+OpenAPI доступен по `/docs`, `/redoc` и `/openapi.json`.
 
 ### Создание обращения
 
 ```bash
 curl -i -X POST http://localhost:8000/api/contact \
   -H "Content-Type: application/json" \
-  -H "X-Request-ID: 550e8400-e29b-41d4-a716-446655440000" \
   -d '{
     "name": "Анна Иванова",
     "phone": "+7 (912) 345-67-89",
     "email": "anna@example.com",
-    "comment": "Хочу обсудить разработку backend-сервиса."
+    "comment": "Нужно разработать backend для интернет-магазина."
   }'
 ```
 
-Ответ `202`:
+Ответ:
+
+```http
+HTTP/1.1 202 Accepted
+```
 
 ```json
 {
@@ -178,23 +222,16 @@ curl -i -X POST http://localhost:8000/api/contact \
 }
 ```
 
-Телефон сохраняется нормализованным; допустимы 7–15 цифр и один ведущий `+`.
-Имя — 2–100, комментарий — 10–3000 символов. Неизвестные поля запрещены.
+### Валидация
 
-### Health и metrics
+- `name`: после trim от 2 до 100 символов;
+- `phone`: от 7 до 15 цифр, допустим один ведущий `+`;
+- `email`: валидный адрес, сохраняется в нижнем регистре;
+- `comment`: после trim от 10 до 3000 символов;
+- неизвестные поля запрещены;
+- тело запроса ограничено 16 КБ по умолчанию.
 
-```bash
-curl http://localhost:8000/api/health
-curl http://localhost:8000/api/health/live
-curl http://localhost:8000/api/health/ready
-curl -H "X-API-Key: change-me" http://localhost:8000/api/metrics
-```
-
-PostgreSQL критичен для readiness. Redis и внешние интеграции отображаются в
-диагностике, но поддерживают предусмотренную деградацию. Если
-`METRICS_API_KEY` пуст, `/api/metrics` отвечает `404`; неверный ключ даёт `401`.
-
-## Формат ошибок
+### Ошибки
 
 ```json
 {
@@ -207,48 +244,84 @@ PostgreSQL критичен для readiness. Redis и внешние интег
 }
 ```
 
-Используются осмысленные статусы `400`, `404`, `413`, `422`, `429`, `500` и
-`503`. При `429` возвращается `Retry-After`. Внутренние исключения и секреты
-клиенту не раскрываются.
+Используются статусы `400`, `401`, `404`, `413`, `422`, `429`, `500` и `503`.
+Ответ `429` содержит `Retry-After`; внутренние исключения клиенту не
+возвращаются.
 
-## AI и fallback
+### Административные обращения
 
-AI-провайдер вызывается через `httpx` по OpenAI-compatible API. Ответ допускает
-только известные категории, sentiment, urgency и summary до 200 символов.
-Повторы выполняются лишь для сетевых ошибок, `429` и `5xx`; timeout задаётся
-через env. Пользовательский комментарий считается недоверенными данными.
+```bash
+curl -u admin:admin http://localhost:8000/api/contacts
+```
 
-В Docker Compose AI работает полностью локально через llama.cpp и модель
-`Qwen2.5-1.5B-Instruct`: ключ и внешний AI-сервис не нужны. При timeout, ошибке или
-невалидном JSON используется результат
-`other / neutral / low / null / unavailable`; обращение при этом не теряется.
-Подробнее: [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
+HTTP Basic добавлен только к списку обращений, потому что он содержит
+персональные данные. В production стандартные credentials не принимаются.
+
+### Health и статистика
+
+```bash
+curl http://localhost:8000/api/health
+curl http://localhost:8000/api/health/live
+curl http://localhost:8000/api/health/ready
+curl -H "X-API-Key: your-local-key" http://localhost:8000/api/metrics
+```
+
+Без `METRICS_API_KEY` endpoint статистики отвечает `404`.
+
+## AI-интеграция
+
+Приложение использует OpenAI-compatible `POST /chat/completions` через
+`httpx`. В Docker запросы идут в локальный llama.cpp с
+`Qwen2.5-1.5B-Instruct Q4_K_M`; внешний аккаунт и API-ключ не нужны.
+
+AI возвращает:
+
+- category: `job_offer`, `project_request`, `collaboration`, `support`,
+  `feedback`, `spam` или `other`;
+- sentiment: `positive`, `neutral` или `negative`;
+- urgency: `low`, `medium` или `high`;
+- summary длиной до 200 символов.
+
+Ответ ограничен JSON Schema и дополнительно проверяется Pydantic. Комментарий
+передаётся как недоверенные данные отдельно от системной инструкции. Полный
+runtime-промпт находится в
+[app/integrations/ai/openai_compatible.py](app/integrations/ai/openai_compatible.py).
+
+При timeout, сетевой ошибке, `429`, `5xx` или невалидном JSON применяется:
+
+```json
+{
+  "category": "other",
+  "sentiment": "neutral",
+  "urgency": "low",
+  "summary": null,
+  "provider_status": "unavailable"
+}
+```
+
+Обращение остаётся в БД, после чего стандартные письма всё равно отправляются.
 
 ## Email
 
-SMTP-провайдер отправляет владельцу полные данные обращения и AI-результат, а
-пользователю — нейтральное подтверждение. Письма plain-text; заголовки защищены
-от CR/LF injection. Отправки независимы, их статусы и ошибки фиксируются в БД.
-При `EMAIL_ENABLED=false` применяется безопасный disabled provider.
+SMTP-провайдер отправляет:
 
-`BackgroundTasks` подходит для тестового задания, но не гарантирует доставку
-после падения процесса. Для production нужен durable queue с retries и DLQ.
+- владельцу: request ID, контакты, комментарий, AI-результат и дату;
+- пользователю: подтверждение получения без обещания срока ответа.
 
-## Rate limiting
+Письма отправляются независимо. Результат каждого вызова сохраняется как
+`pending`, `sent`, `failed` или `skipped`. Заголовки защищены от CR/LF
+injection. В Docker письма перехватывает Mailpit и не отправляет их во внешний
+интернет.
 
-Redis Lua-скрипт атомарно увеличивает счётчик и устанавливает TTL. Identity —
-HMAC-SHA256 от IP с серверной солью; исходный IP не хранится. При недоступности
-Redis выбран документированный fail-open с warning, чтобы форма оставалась
-доступной. Заголовкам proxy можно доверять только за доверенным reverse proxy.
+## Хранение данных, логов и статистики
 
-## Логирование и наблюдаемость
-
-Структурированные логи идут в stdout и rotating-файл. Записываются request ID,
-метод, путь, статус, длительность и безопасный IP hash. Тело, полный
-email/телефон/comment, API-ключи и SMTP-пароль не логируются.
-
-Liveness проверяет процесс, readiness — PostgreSQL и состояние зависимостей.
-`/api/metrics` — JSON-продуктовая статистика, а не Prometheus exposition.
+- PostgreSQL хранит обращения, AI-результаты и статусы писем.
+- Redis хранит rate-limit counters с TTL; исходный IP не сохраняется.
+- `/api/metrics` считает агрегаты по таблице обращений: total/today,
+  категории, sentiment, ошибки email и число AI fallback.
+- Логи пишутся в stdout и `APP_LOG_FILE` через `RotatingFileHandler`.
+- В логах есть request ID, метод, путь, HTTP-статус, длительность и HMAC IP.
+- Тела запросов, комментарии, телефоны, email, пароли и ключи не логируются.
 
 ## Тесты и качество
 
@@ -260,14 +333,14 @@ uv run pytest
 uv run pytest --cov=app --cov-report=term-missing
 ```
 
-PowerShell использует те же команды. Тесты работают на fakes/SQLite и не
-обращаются к реальным AI или SMTP. Покрыты валидация, API success/error,
-rate limit, AI fallback/retries, email, DB outage, request ID, health, metrics
-и CORS.
+Тесты используют fakes, dependency overrides и SQLite, поэтому не обращаются к
+реальному AI или SMTP. Покрыты validation, rate limit, AI fallback и JSON,
+email, database failure, request ID, health, metrics authentication, CORS и
+admin authentication.
 
-GitHub Actions выполняет Ruff, строгий mypy, pytest и отдельно собирает Docker
-image. Локальные сокращения доступны через `Makefile`; pre-commit включается
-командой `uv run pre-commit install`.
+GitHub Actions запускает Ruff, mypy, pytest и сборку Docker image. Makefile
+содержит команды `install`, `run`, `test`, `lint`, `format`, `typecheck`,
+`migrate`, `model`, `docker-up` и `docker-down`.
 
 ## Postman
 
@@ -276,47 +349,81 @@ image. Локальные сокращения доступны через `Make
 - `postman/AI Contact API.postman_collection.json`;
 - `postman/Local.postman_environment.json`.
 
-Выберите окружение `AI Contact API - Local`. Для metrics заполните локальную
-переменную `metrics_api_key`. Коллекция содержит success/validation сценарии,
-health, readiness и metrics с автоматическими проверками ответа.
+Коллекция содержит успешное и невалидное обращение, health, readiness и
+metrics.
 
-## Безопасность
+## Что сделано с помощью AI
 
-Основные меры: allowlist CORS, лимиты ввода, запрет extra-полей, HMAC IP,
-rate limit, constant-time проверка metrics key, ограниченные timeout/retries,
-защита AI prompt и email headers, безопасные ошибки и логи без PII/секретов.
-Полная модель: [`docs/SECURITY.md`](docs/SECURITY.md).
+Codex использовался для:
 
-## Компромиссы и production-улучшения
+- извлечения требований из PDF и составления плана;
+- подготовки каркаса приложения, миграций, тестов и документации;
+- реализации отдельных обработчиков, интеграций и Docker-конфигурации;
+- поиска несоответствий между кодом, OpenAPI, README и исходным заданием.
 
-- `BackgroundTasks` заменить на Celery/RQ/Arq или broker-backed worker;
-- добавить идемпотентность формы и transactional outbox;
-- хранить секреты в secret manager, настроить TLS и trusted proxy;
-- экспортировать Prometheus/OpenTelemetry и централизовать логи;
-- добавить retention/удаление PII, backups и восстановление;
-- запустить интеграционные тесты с настоящими PostgreSQL/Redis в CI;
-- масштабировать rate limiting и добавить edge/WAF-защиту.
+Примеры рабочих промптов:
 
-Архитектурные компромиссы описаны в
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
+- «Раздели требования PDF на обязательные и дополнительные и составь
+  трассировку».
+- «Реализуй `POST /api/contact` с нормализацией, rate limit, сохранением и
+  безопасными ошибками».
+- «Добавь OpenAI-compatible классификатор со строгим JSON и fallback».
+- «Добавь два SMTP-письма, сохрани независимые статусы и не логируй PII».
+- «Сверь публичные маршруты, Postman и README с исходным PDF».
 
-## Использование AI при разработке
+Вручную были проверены и исправлены:
 
-Codex использовался для анализа PDF, проектирования, реализации, тестов,
-документации и локальных проверок. Результат вручную сверялся с ТЗ, diff,
-OpenAPI, тестами и Docker-конфигурацией. Конкретные проверки и исправления
-перечислены в [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
+- публичный маршрут `/api/contact`;
+- границы DB-транзакций и отдельная сессия фоновой задачи;
+- fallback при недоступности AI;
+- защита email headers и отсутствие PII в логах;
+- CORS, OpenAPI, Postman и Docker health checks;
+- качество локальной модели: тестовые 135M и 0.5B заменены на Qwen2.5 1.5B;
+- системный prompt после проверки на русскоязычных обращениях;
+- удаление неиспользуемых конфигураций облачного деплоя.
 
-## Локальная демонстрация
+Полный журнал приведён в [docs/AI_USAGE.md](docs/AI_USAGE.md). Утверждения о
+проверках основаны на выполненных командах, а не на сгенерированных оценках.
 
-Тестовое задание запускается одной командой `docker compose up --build`.
-Публичный deployment URL не требуется: инструкция выше полностью описывает
-локальный запуск API, базы данных, Redis, SMTP и тестового интерфейса.
+## Безопасность и ограничения
+
+- CORS работает по allowlist.
+- Размеры запроса и строк ограничены.
+- IP перед хранением хэшируется с серверной солью.
+- Metrics key и HTTP Basic credentials сравниваются constant-time.
+- AI и SMTP имеют timeout; AI повторяет только временные ошибки.
+- Пользовательские HTML и Markdown не исполняются.
+- Секреты и `.env` исключены из Git.
+
+`BackgroundTasks` не является надёжной очередью: при остановке процесса после
+ответа задача может потеряться. Для production понадобятся durable queue,
+retry policy и transactional outbox. Для тестового задания выбран простой
+вариант без отдельного broker.
+
+Подробнее: [docs/SECURITY.md](docs/SECURITY.md) и
+[docs/DECISIONS.md](docs/DECISIONS.md).
+
+## Деплой
+
+Публичный деплой не выполнялся. Исходное задание разрешает вместо ссылки
+предоставить инструкцию локального запуска; она приведена в разделе
+«Запуск через Docker Compose».
+
+Для внешнего размещения необходимо:
+
+1. заменить `admin` / `admin`, HMAC-соль и все credentials;
+2. использовать управляемые PostgreSQL, Redis, SMTP и secret storage;
+3. применить `alembic upgrade head`;
+4. направить health check на `/api/health/live`;
+5. писать логи во внешнюю систему, если файловая система эфемерна;
+6. решить, где будет запущена модель или какой OpenAI-compatible provider будет
+   использован.
 
 ## Дополнительная документация
 
-- [`docs/REQUIREMENTS_ANALYSIS.md`](docs/REQUIREMENTS_ANALYSIS.md) — трассировка ТЗ;
-- [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) — этапы реализации;
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — компоненты и поток;
-- [`docs/SECURITY.md`](docs/SECURITY.md) — угрозы и меры;
-- [`docs/DECISIONS.md`](docs/DECISIONS.md) — принятые решения;
+- [docs/REQUIREMENTS_ANALYSIS.md](docs/REQUIREMENTS_ANALYSIS.md) — трассировка;
+- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — этапы работы;
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — компоненты и поток;
+- [docs/AI_USAGE.md](docs/AI_USAGE.md) — использование AI;
+- [docs/SECURITY.md](docs/SECURITY.md) — меры безопасности;
+- [docs/DECISIONS.md](docs/DECISIONS.md) — принятые решения.

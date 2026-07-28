@@ -89,7 +89,6 @@ class ContactAccepted(BaseModel):
                     "request_id": "f5a881fd-4bee-4c83-91b9-f204619db856",
                     "status": "accepted",
                     "message": "Contact request accepted for processing",
-                    "category": "project_request",
                 }
             ]
         }
@@ -98,7 +97,6 @@ class ContactAccepted(BaseModel):
     request_id: uuid.UUID
     status: str = "accepted"
     message: str = "Contact request accepted for processing"
-    category: str | None = None
 
 
 class ContactDetail(BaseModel):
