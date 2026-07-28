@@ -2,6 +2,7 @@
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.contact_request import ContactRequest
@@ -41,6 +42,15 @@ class ContactRequestRepository:
     async def get_by_id(self, contact_id: uuid.UUID) -> ContactRequest | None:
         """Return one contact request by primary key."""
         return await self.session.get(ContactRequest, contact_id)
+
+    async def list_recent(self, *, limit: int = 100) -> list[ContactRequest]:
+        """Return newest contact requests for the local inspection UI."""
+        result = await self.session.scalars(
+            select(ContactRequest)
+            .order_by(ContactRequest.created_at.desc())
+            .limit(limit)
+        )
+        return list(result)
 
     async def save_ai_classification(
         self,

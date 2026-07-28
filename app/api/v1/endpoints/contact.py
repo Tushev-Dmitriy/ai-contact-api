@@ -7,10 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.dependencies import get_session
+from app.db.models.contact_request import ContactRequest
 from app.integrations.ai.base import AIProvider
 from app.middleware.request_context import client_ip
 from app.repositories.contact import ContactRequestRepository
-from app.schemas.contact import ContactAccepted, ContactCreate
+from app.schemas.contact import ContactAccepted, ContactCreate, ContactDetail
 from app.services.contact import ContactService
 from app.services.dependencies import (
     get_ai_provider,
@@ -21,11 +22,23 @@ from app.services.email import EmailService, process_contact_emails
 from app.services.rate_limit import RedisRateLimiter
 from app.utils.pii import hash_ip
 
-router = APIRouter(prefix="/contact", tags=["contact"])
+router = APIRouter(tags=["contact"])
+
+
+@router.get(
+    "/contacts",
+    response_model=list[ContactDetail],
+    summary="List recent contact requests",
+)
+async def list_contacts(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[ContactRequest]:
+    """Expose recent processing results for the local demonstration UI."""
+    return await ContactRequestRepository(session).list_recent()
 
 
 @router.post(
-    "",
+    "/contact",
     response_model=ContactAccepted,
     response_model_exclude_none=True,
     status_code=status.HTTP_202_ACCEPTED,

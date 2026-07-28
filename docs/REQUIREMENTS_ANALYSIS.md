@@ -123,8 +123,8 @@
 - Подготовить подробный README со всеми 26 разделами из расширенного ТЗ,
   архитектурную/AI/deployment/security/decisions документацию и Postman либо
   Bruno collection.
-- Подготовить проект к Render или Railway, но не выполнять деплой без прямого
-  указания. Если рабочего URL нет, дать локальную инструкцию.
+- Предоставить воспроизводимую инструкцию локального запуска как разрешённую
+  заданием альтернативу публичному деплою.
 - Честно документировать использование Codex и ручную проверку.
 - Работать отдельными этапами и коммитами, выполнять доступные проверки,
   проверять diff, не делать push.
@@ -159,7 +159,7 @@
 | Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | done |
 | Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | done |
 | Documentation and API examples | README, focused docs, Postman collection | `README.md`, `docs/`, `postman/` | done |
-| Deployment readiness | Platform-neutral container guide and env/migration/health instructions | `docs/DEPLOYMENT.md`, `README.md` | done |
+| Local run readiness | Compose guide with API, database, Redis, SMTP and health checks | `docker-compose.yml`, `README.md` | done |
 | Prometheus metrics | Не входит в обязательный scope | возможный `app/api/metrics.py` | optional |
 | Frontend | Только после backend, отдельным решением | вне текущего scope | optional |
 

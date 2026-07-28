@@ -2,8 +2,18 @@
 
 import re
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.db.models.contact_request import (
+    ContactCategory,
+    EmailStatus,
+    ProcessingStatus,
+    ProviderStatus,
+    Sentiment,
+    Urgency,
+)
 
 PHONE_CHARACTERS = re.compile(r"^[+\d\s().-]+$")
 
@@ -89,3 +99,25 @@ class ContactAccepted(BaseModel):
     status: str = "accepted"
     message: str = "Contact request accepted for processing"
     category: str | None = None
+
+
+class ContactDetail(BaseModel):
+    """A locally inspectable contact and all processing results."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    phone: str
+    email: EmailStr
+    comment: str
+    category: ContactCategory | None
+    sentiment: Sentiment | None
+    urgency: Urgency | None
+    ai_summary: str | None
+    ai_provider_status: ProviderStatus
+    processing_status: ProcessingStatus
+    owner_email_status: EmailStatus
+    user_email_status: EmailStatus
+    created_at: datetime
+    updated_at: datetime

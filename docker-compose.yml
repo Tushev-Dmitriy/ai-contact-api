@@ -11,19 +11,18 @@ x-api-environment: &api-environment
   REDIS_URL: redis://redis:6379/0
   RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-5}
   RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-900}
-  AI_ENABLED: ${AI_ENABLED:-false}
-  AI_API_KEY: ${AI_API_KEY:-}
-  AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
-  AI_MODEL: ${AI_MODEL:-}
-  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-10}
-  EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
-  SMTP_HOST: ${SMTP_HOST:-}
-  SMTP_PORT: ${SMTP_PORT:-587}
-  SMTP_USERNAME: ${SMTP_USERNAME:-}
-  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-  SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
-  SMTP_OWNER_EMAIL: ${SMTP_OWNER_EMAIL:-}
-  SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+  AI_ENABLED: "true"
+  AI_API_KEY: local-llamacpp
+  AI_BASE_URL: http://llamacpp:8080/v1
+  AI_MODEL: local-smollm2-135m
+  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-120}
+  EMAIL_ENABLED: "true"
+  EMAIL_PROVIDER: smtp
+  SMTP_HOST: mailpit
+  SMTP_PORT: 1025
+  SMTP_FROM_EMAIL: no-reply@example.com
+  SMTP_OWNER_EMAIL: owner@example.com
+  SMTP_USE_TLS: "false"
   METRICS_API_KEY: ${METRICS_API_KEY:-}
 
 services:
@@ -58,6 +57,31 @@ services:
       retries: 10
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    restart: unless-stopped
+
+  llamacpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      [
+        "-hf",
+        "unsloth/SmolLM2-135M-Instruct-GGUF:Q4_K_M",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "-c",
+        "2048",
+        "-n",
+        "256",
+      ]
+    volumes:
+      - llama_cache:/root/.cache
+    restart: unless-stopped
+
   migrate:
     build:
       context: .
@@ -81,6 +105,10 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+      llamacpp:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -99,3 +127,4 @@ volumes:
   postgres_data:
   redis_data:
   api_logs:
+  llama_cache:

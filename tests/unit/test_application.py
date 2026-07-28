@@ -30,6 +30,23 @@ def test_create_app_returns_configured_fastapi_application(tmp_path: Path) -> No
     assert application.state.settings is settings
 
 
+async def test_local_frontend_is_served(tmp_path: Path) -> None:
+    application = create_app(build_settings(tmp_path))
+
+    async with AsyncClient(
+        transport=ASGITransport(app=application),
+        base_url="http://test",
+    ) as client:
+        response = await client.get("/")
+        script = await client.get("/app.js")
+
+    assert response.status_code == 200
+    assert "AI Contact API" in response.text
+    assert "/api/contact" in response.text
+    assert script.status_code == 200
+    assert 'fetch("/api/contact"' in script.text
+
+
 async def test_request_id_is_returned_and_safe_input_is_preserved(
     tmp_path: Path,
 ) -> None:

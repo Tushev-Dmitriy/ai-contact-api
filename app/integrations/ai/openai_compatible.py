@@ -23,7 +23,43 @@ these fields:
 - urgency: low, medium, or high
 - summary: a concise string of at most 200 characters, or null
 Do not add personal data to the summary unless it is essential to its meaning.
+Write summary from the actual comment, not from these instructions or field
+descriptions. Example for "Urgently need a developer to build a shop":
+{"category":"project_request","sentiment":"neutral","urgency":"high",
+"summary":"Urgent request to build an online shop."}
 Do not return Markdown, prose, code fences, or additional fields."""
+
+CLASSIFICATION_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "category": {
+            "type": "string",
+            "enum": [
+                "job_offer",
+                "project_request",
+                "collaboration",
+                "support",
+                "feedback",
+                "spam",
+                "other",
+            ],
+        },
+        "sentiment": {
+            "type": "string",
+            "enum": ["positive", "neutral", "negative"],
+        },
+        "urgency": {
+            "type": "string",
+            "enum": ["low", "medium", "high"],
+        },
+        "summary": {
+            "type": ["string", "null"],
+            "maxLength": 200,
+        },
+    },
+    "required": ["category", "sentiment", "urgency", "summary"],
+    "additionalProperties": False,
+}
 
 
 class AIProviderError(Exception):
@@ -94,7 +130,14 @@ class OpenAICompatibleProvider:
                                 ),
                             },
                         ],
-                        "response_format": {"type": "json_object"},
+                        "response_format": {
+                            "type": "json_schema",
+                            "json_schema": {
+                                "name": "contact_classification",
+                                "strict": True,
+                                "schema": CLASSIFICATION_JSON_SCHEMA,
+                            },
+                        },
                         "temperature": 0,
                     },
                 )

@@ -235,7 +235,7 @@ git status --short
 
 - `BackgroundTasks` не гарантирует доставку после падения процесса.
 - Rate limit по IP требует корректной конфигурации trusted proxy.
-- Файловые логи на Render/Railway эфемерны.
+- При внешнем деплое файловые логи могут быть эфемерными.
 - OpenAI-compatible providers могут различаться форматом structured output;
   adapter должен валидировать ответ и уходить в fallback.
 - Проверка отдельных email status должна переживать частичный SMTP-сбой.

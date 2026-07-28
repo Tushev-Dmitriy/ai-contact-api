@@ -110,10 +110,19 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
                 "comment": "  I would like to discuss a backend project.  ",
             },
         )
+        list_response = await client.get("/api/contacts")
 
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
     assert response.json()["category"] == "job_offer"
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+    listed = list_response.json()[0]
+    assert listed["id"] == response.json()["request_id"]
+    assert listed["sentiment"] == "positive"
+    assert listed["urgency"] == "medium"
+    assert listed["ai_summary"] == "A job opportunity."
+    assert listed["processing_status"] == "completed"
 
     async with session_factory() as session:
         stored = (await session.scalars(select(ContactRequest))).one()

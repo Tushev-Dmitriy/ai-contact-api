@@ -52,8 +52,18 @@ Copy-Item .env.example .env
 docker compose up --build
 ```
 
-Compose поднимает PostgreSQL, Redis, выполняет `alembic upgrade head` отдельным
-контейнером и запускает API на `http://localhost:8000`.
+Compose поднимает PostgreSQL, Redis, локальную AI-модель llama.cpp и SMTP-сервер
+Mailpit, выполняет `alembic upgrade head` отдельным контейнером и запускает
+приложение. При первом запуске скачивается модель `SmolLM2-135M-Instruct`;
+последующие
+запуски используют Docker volume.
+
+- интерфейс формы: `http://localhost:8000`;
+- Swagger UI: `http://localhost:8000/docs`;
+- перехваченные SMTP-письма: `http://localhost:8025`.
+
+Mailpit не требует регистрации и не отправляет письма во внешний интернет:
+оба уведомления можно безопасно посмотреть в его веб-интерфейсе.
 
 Проверка:
 
@@ -129,6 +139,7 @@ uv run alembic revision --autogenerate -m "describe change"
 | Метод | Маршрут | Назначение |
 |---|---|---|
 | `POST` | `/api/contact` | создать обращение |
+| `GET` | `/api/contacts` | последние 100 обращений и результаты обработки |
 | `GET` | `/api/health` | сводное состояние |
 | `GET` | `/api/health/live` | liveness |
 | `GET` | `/api/health/ready` | readiness |
@@ -202,9 +213,11 @@ AI-провайдер вызывается через `httpx` по OpenAI-compat
 Повторы выполняются лишь для сетевых ошибок, `429` и `5xx`; timeout задаётся
 через env. Пользовательский комментарий считается недоверенными данными.
 
-Без ключа, при `AI_ENABLED=false`, timeout, ошибке или невалидном JSON
-используется результат `other / neutral / low / null / unavailable`. Обращение
-при этом не теряется. Подробнее: [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
+В Docker Compose AI работает полностью локально через llama.cpp и модель
+`SmolLM2-135M-Instruct`: ключ и внешний AI-сервис не нужны. При timeout, ошибке или
+невалидном JSON используется результат
+`other / neutral / low / null / unavailable`; обращение при этом не теряется.
+Подробнее: [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
 
 ## Email
 
@@ -289,17 +302,11 @@ Codex использовался для анализа PDF, проектиров
 OpenAPI, тестами и Docker-конфигурацией. Конкретные проверки и исправления
 перечислены в [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
 
-## Деплой
+## Локальная демонстрация
 
-Рекомендуемый бесплатный стек: Koyeb + Neon + Upstash + Groq + Brevo.
-Контейнер применяет миграции перед запуском API; Koyeb должен публиковать порт
-`8000` и проверять `/api/health/live`. Готовый шаблон переменных:
-[`deploy/koyeb.env.example`](deploy/koyeb.env.example). Полная инструкция:
-[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
-
-Публичный deployment URL отсутствует: деплой и push намеренно не выполнялись
-без отдельного разрешения. Локальный Swagger доступен по
-`http://localhost:8000/docs`.
+Тестовое задание запускается одной командой `docker compose up --build`.
+Публичный deployment URL не требуется: инструкция выше полностью описывает
+локальный запуск API, базы данных, Redis, SMTP и тестового интерфейса.
 
 ## Дополнительная документация
 
@@ -308,4 +315,3 @@ OpenAPI, тестами и Docker-конфигурацией. Конкретны
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — компоненты и поток;
 - [`docs/SECURITY.md`](docs/SECURITY.md) — угрозы и меры;
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — принятые решения;
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — production checklist.

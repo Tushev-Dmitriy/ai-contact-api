@@ -2,12 +2,13 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
 from redis.asyncio import Redis
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 from starlette.types import Receive, Scope, Send
 
 from app.api.v1.router import router as api_v1_router
@@ -127,6 +128,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = application_settings
     application.include_router(api_v1_router)
     register_exception_handlers(application, application_settings)
+    static_directory = Path(__file__).parent / "static"
+
+    @application.get("/", include_in_schema=False)
+    async def frontend() -> FileResponse:
+        return FileResponse(static_directory / "index.html")
+
+    @application.get("/styles.css", include_in_schema=False)
+    async def frontend_styles() -> FileResponse:
+        return FileResponse(static_directory / "styles.css", media_type="text/css")
+
+    @application.get("/app.js", include_in_schema=False)
+    async def frontend_script() -> FileResponse:
+        return FileResponse(
+            static_directory / "app.js",
+            media_type="application/javascript",
+        )
+
     return application
 
 
