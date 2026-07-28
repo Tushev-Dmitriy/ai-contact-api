@@ -291,9 +291,11 @@ OpenAPI, тестами и Docker-конфигурацией. Конкретны
 
 ## Деплой
 
-Контейнер готов к Render/Railway или другой платформе с PostgreSQL и Redis.
-Нужны production env, отдельный шаг миграции и health check
-`/api/health/live`. Инструкция: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+Рекомендуемый бесплатный стек: Koyeb + Neon + Upstash + Groq + Brevo.
+Контейнер применяет миграции перед запуском API; Koyeb должен публиковать порт
+`8000` и проверять `/api/health/live`. Готовый шаблон переменных:
+[`deploy/koyeb.env.example`](deploy/koyeb.env.example). Полная инструкция:
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 Публичный deployment URL отсутствует: деплой и push намеренно не выполнялись
 без отдельного разрешения. Локальный Swagger доступен по

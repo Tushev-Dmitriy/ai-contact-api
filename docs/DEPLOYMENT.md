@@ -1,14 +1,51 @@
 # Деплой
 
-Проект готов к container-based платформе (Render, Railway или аналог), но
-публичный deploy не выполнялся.
+Рекомендуемый бесплатный стек для демонстрационного deployment:
+
+- Koyeb Free — Docker web service;
+- Neon Free — PostgreSQL;
+- Upstash Free — Redis;
+- Groq Free — OpenAI-compatible классификация;
+- Brevo Free — SMTP через STARTTLS на порту 587.
+
+Шаблон production-переменных находится в `deploy/koyeb.env.example`.
+
+## Koyeb
+
+1. Создайте бесплатные Neon и Upstash databases в одном близком регионе.
+2. Создайте Groq API key.
+3. В Brevo подтвердите sender и создайте SMTP key.
+4. В Koyeb подключите GitHub-репозиторий `Tushev-Dmitriy/ai-contact-api`.
+5. Выберите ветку `main`, builder `Dockerfile`, instance `Free`.
+6. Опубликуйте порт `8000` как HTTP с route `/`.
+7. Health check: порт `8000`, HTTP path `/api/health/live`.
+8. Перенесите значения из `deploy/koyeb.env.example` в Environment variables.
+   Все значения из секретной секции создайте как Koyeb Secrets.
+9. Оставьте одну replica и включите автоматический deploy из `main`.
+
+Container entry point выполняет `alembic upgrade head`, после чего запускает
+Uvicorn. Повторное применение актуальной миграции безопасно и позволяет
+восстанавливать free instance после сна без ручной команды.
+
+Neon connection string нужно привести к драйверу
+`postgresql+asyncpg://`. Если Neon добавил `channel_binding=require`, удалите
+только этот параметр; TLS должен остаться включённым через `ssl=require`.
+
+После deployment проверьте:
+
+```text
+GET  https://<service>.koyeb.app/api/health/live
+GET  https://<service>.koyeb.app/api/health/ready
+POST https://<service>.koyeb.app/api/contact
+GET  https://<service>.koyeb.app/docs
+```
 
 ## Ресурсы
 
 1. Managed PostgreSQL.
 2. Managed Redis.
-3. Web service из `Dockerfile`, порт из переменной платформы или `8000`.
-4. Pre-deploy/release command: `alembic upgrade head`.
+3. Web service из `Dockerfile`, порт `8000`.
+4. Миграции выполняются production entry point перед Uvicorn.
 
 ## Обязательная конфигурация
 
