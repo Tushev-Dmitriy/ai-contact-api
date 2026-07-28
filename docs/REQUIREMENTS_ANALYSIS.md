@@ -156,9 +156,9 @@
 | CORS and OpenAPI | Settings-driven middleware and FastAPI metadata/examples | `app/core/config.py`, `app/main.py`, endpoint schemas | done |
 | Central configuration | `BaseSettings`, env profiles/validation, safe example | `app/core/config.py`, `.env.example` | done |
 | Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | done |
-| Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | planned |
-| Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | in progress |
-| Documentation and API examples | README, focused docs, Bruno collection | `README.md`, `docs/`, `bruno/` | planned |
+| Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | done |
+| Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | done |
+| Documentation and API examples | README, focused docs, Postman collection | `README.md`, `docs/`, `postman/` | in progress |
 | Deployment readiness | Platform-neutral container guide and env/migration/health instructions | `docs/DEPLOYMENT.md`, `README.md` | planned |
 | Prometheus metrics | Не входит в обязательный scope | возможный `app/api/metrics.py` | optional |
 | Frontend | Только после backend, отдельным решением | вне текущего scope | optional |

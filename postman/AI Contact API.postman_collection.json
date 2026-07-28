@@ -1,0 +1,155 @@
+{
+  "info": {
+    "_postman_id": "22f07331-bd72-4b5c-9892-77b1d87dd0b3",
+    "name": "AI Contact API",
+    "description": "Requests for the AI Contact API test assignment. Configure base_url and metrics_api_key in the environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Contact - success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Accepted', () => pm.response.to.have.status(202));",
+              "pm.test('Request ID returned', () => pm.expect(pm.response.json().request_id).to.be.a('string'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ada Lovelace\",\n  \"phone\": \"+44 20 7946 0123\",\n  \"email\": \"ada@example.com\",\n  \"comment\": \"I would like to discuss a backend project.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/contact",
+          "host": ["{{base_url}}"],
+          "path": ["api", "contact"]
+        },
+        "description": "Persists and classifies a valid contact request. Returns 202."
+      }
+    },
+    {
+      "name": "Contact - invalid",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Validation error', () => pm.response.to.have.status(422));",
+              "pm.test('Stable error envelope', () => pm.expect(pm.response.json().error.code).to.eql('validation_error'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"A\",\n  \"phone\": \"123\",\n  \"email\": \"invalid\",\n  \"comment\": \"short\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/contact",
+          "host": ["{{base_url}}"],
+          "path": ["api", "contact"]
+        }
+      }
+    },
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Health available', () => pm.response.to.have.status(200));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "health"]
+        }
+      }
+    },
+    {
+      "name": "Readiness",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Ready', () => pm.response.to.have.status(200));",
+              "pm.test('PostgreSQL is up', () => pm.expect(pm.response.json().checks.postgres.status).to.eql('up'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/health/ready",
+          "host": ["{{base_url}}"],
+          "path": ["api", "health", "ready"]
+        }
+      }
+    },
+    {
+      "name": "Metrics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Metrics available', () => pm.response.to.have.status(200));",
+              "pm.test('Totals returned', () => pm.expect(pm.response.json().total_requests).to.be.a('number'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{metrics_api_key}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/metrics",
+          "host": ["{{base_url}}"],
+          "path": ["api", "metrics"]
+        },
+        "description": "Returns 404 when METRICS_API_KEY is not configured or the key is invalid."
+      }
+    }
+  ]
+}
