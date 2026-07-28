@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     ai_timeout_seconds: PositiveInt = 10
 
     email_enabled: bool = False
+    email_provider: Literal["smtp", "brevo"] = "smtp"
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str | None = None
@@ -62,6 +63,8 @@ class Settings(BaseSettings):
     smtp_from_email: EmailStr | None = None
     smtp_owner_email: EmailStr | None = None
     smtp_use_tls: bool = True
+    brevo_api_key: str | None = None
+    brevo_api_url: AnyHttpUrl = AnyHttpUrl("https://api.brevo.com/v3/smtp/email")
 
     metrics_api_key: str | None = None
 
@@ -73,6 +76,7 @@ class Settings(BaseSettings):
         "smtp_password",
         "smtp_from_email",
         "smtp_owner_email",
+        "brevo_api_key",
         "metrics_api_key",
         mode="before",
     )
@@ -81,6 +85,14 @@ class Settings(BaseSettings):
         """Treat empty Compose/environment values as disabled configuration."""
         if isinstance(value, str) and not value.strip():
             return None
+        return value
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_postgres_driver(cls, value: object) -> object:
+        """Adapt platform-provided PostgreSQL URLs to the asyncpg driver."""
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
         return value
 
     @model_validator(mode="after")
@@ -92,17 +104,23 @@ class Settings(BaseSettings):
         if self.ai_enabled and (not self.ai_api_key or not self.ai_model):
             raise ValueError("AI_API_KEY and AI_MODEL are required when AI is enabled")
 
-        email_required = (
-            self.smtp_host,
-            self.smtp_from_email,
-            self.smtp_owner_email,
-        )
-        if self.email_enabled and not all(email_required):
+        if self.email_enabled and self.email_provider == "smtp" and not self.smtp_host:
+            raise ValueError("SMTP_HOST is required for the SMTP email provider")
+        if (
+            self.email_enabled
+            and self.email_provider == "brevo"
+            and not self.brevo_api_key
+        ):
+            raise ValueError("BREVO_API_KEY is required for the Brevo email provider")
+        common_email_required = (self.smtp_from_email, self.smtp_owner_email)
+        if self.email_enabled and not all(common_email_required):
             raise ValueError(
-                "SMTP_HOST, SMTP_FROM_EMAIL and SMTP_OWNER_EMAIL are required "
+                "SMTP_FROM_EMAIL and SMTP_OWNER_EMAIL are required "
                 "when email is enabled"
             )
-        if bool(self.smtp_username) != bool(self.smtp_password):
+        if self.email_provider == "smtp" and bool(self.smtp_username) != bool(
+            self.smtp_password
+        ):
             raise ValueError(
                 "SMTP_USERNAME and SMTP_PASSWORD must be configured together"
             )

@@ -23,6 +23,17 @@ def test_development_defaults_are_safe_to_start(tmp_path: Path) -> None:
     ]
 
 
+def test_platform_postgres_url_is_normalized_for_asyncpg() -> None:
+    settings = Settings(
+        app_env="test",
+        database_url="postgresql://user:password@postgres/database",
+    )
+
+    assert settings.database_url == (
+        "postgresql+asyncpg://user:password@postgres/database"
+    )
+
+
 def test_ai_configuration_is_required_only_when_enabled() -> None:
     with pytest.raises(ValidationError, match="AI_API_KEY and AI_MODEL"):
         Settings(app_env="test", ai_enabled=True)
