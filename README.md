@@ -31,10 +31,10 @@ database/integrations. Подробности находятся в
 1. ограничение размера и валидацию/нормализацию;
 2. Redis rate limit по HMAC-хэшу IP;
 3. сохранение обращения со статусом `processing`;
-4. AI-классификацию или детерминированный fallback;
-5. сохранение результата;
-6. постановку двух email в `BackgroundTasks`;
-7. возврат `202 Accepted`; фон обновляет статусы отправки в БД.
+4. немедленный возврат `202 Accepted`;
+5. AI-классификацию или детерминированный fallback в `BackgroundTasks`;
+6. сохранение результата и отправку двух email;
+7. обновление AI/email-статусов в БД, которые интерфейс опрашивает каждые 2 секунды.
 
 ## Быстрый запуск через Docker Compose
 
@@ -42,6 +42,7 @@ database/integrations. Подробности находятся в
 
 ```bash
 cp .env.example .env
+make model
 docker compose up --build
 ```
 
@@ -49,18 +50,23 @@ docker compose up --build
 
 ```powershell
 Copy-Item .env.example .env
+./scripts/download-model.ps1
 docker compose up --build
 ```
 
 Compose поднимает PostgreSQL, Redis, локальную AI-модель llama.cpp и SMTP-сервер
 Mailpit, выполняет `alembic upgrade head` отдельным контейнером и запускает
-приложение. При первом запуске скачивается модель `SmolLM2-135M-Instruct`;
+приложение. Перед первым запуском скачайте модель `Qwen2.5-1.5B-Instruct`
+командой `make model` (PowerShell: `./scripts/download-model.ps1`);
 последующие
 запуски используют Docker volume.
 
 - интерфейс формы: `http://localhost:8000`;
 - Swagger UI: `http://localhost:8000/docs`;
 - перехваченные SMTP-письма: `http://localhost:8025`.
+
+Список обращений защищён HTTP Basic. Локальные значения по умолчанию:
+`admin` / `admin`; для изменения задайте `ADMIN_USERNAME` и `ADMIN_PASSWORD`.
 
 Mailpit не требует регистрации и не отправляет письма во внешний интернет:
 оба уведомления можно безопасно посмотреть в его веб-интерфейсе.
@@ -139,7 +145,7 @@ uv run alembic revision --autogenerate -m "describe change"
 | Метод | Маршрут | Назначение |
 |---|---|---|
 | `POST` | `/api/contact` | создать обращение |
-| `GET` | `/api/contacts` | последние 100 обращений и результаты обработки |
+| `GET` | `/api/contacts` | последние 100 обращений и результаты обработки; HTTP Basic |
 | `GET` | `/api/health` | сводное состояние |
 | `GET` | `/api/health/live` | liveness |
 | `GET` | `/api/health/ready` | readiness |
@@ -168,8 +174,7 @@ curl -i -X POST http://localhost:8000/api/contact \
 {
   "request_id": "f5a881fd-4bee-4c83-91b9-f204619db856",
   "status": "accepted",
-  "message": "Contact request accepted for processing",
-  "category": "project_request"
+  "message": "Contact request accepted for processing"
 }
 ```
 
@@ -214,7 +219,7 @@ AI-провайдер вызывается через `httpx` по OpenAI-compat
 через env. Пользовательский комментарий считается недоверенными данными.
 
 В Docker Compose AI работает полностью локально через llama.cpp и модель
-`SmolLM2-135M-Instruct`: ключ и внешний AI-сервис не нужны. При timeout, ошибке или
+`Qwen2.5-1.5B-Instruct`: ключ и внешний AI-сервис не нужны. При timeout, ошибке или
 невалидном JSON используется результат
 `other / neutral / low / null / unavailable`; обращение при этом не теряется.
 Подробнее: [`docs/AI_USAGE.md`](docs/AI_USAGE.md).

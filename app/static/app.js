@@ -6,6 +6,10 @@ const comment = form.elements.comment;
 const contactsList = document.querySelector("#contacts-list");
 const contactsLoading = document.querySelector("#contacts-loading");
 const contactsEmpty = document.querySelector("#contacts-empty");
+const adminLogin = document.querySelector("#admin-login");
+const adminSession = document.querySelector("#admin-session");
+let adminAuthorization = sessionStorage.getItem("adminAuthorization");
+let contactsPoller;
 
 const examples = {
   name: "Анна Иванова",
@@ -27,7 +31,7 @@ function showResult(response, payload) {
   document.querySelector("#result-badge").textContent = `${response.status} ${response.statusText}`;
   document.querySelector("#result-title").textContent = ok ? "Обращение принято" : "Запрос отклонён";
   document.querySelector("#request-id").textContent = payload.request_id || error?.request_id || "—";
-  document.querySelector("#category").textContent = payload.category || "—";
+  document.querySelector("#category").textContent = payload.category || (ok ? "обрабатывается…" : "—");
   document.querySelector("#message").textContent = payload.message || error?.message || "Неизвестная ошибка";
   document.querySelector("#raw-response").textContent = JSON.stringify(payload, null, 2);
 }
@@ -50,10 +54,10 @@ function statusPill(value) {
   return `<span class="pill ${safe}">${safe}</span>`;
 }
 
-function contactCard(contact) {
+function contactCard(contact, openIds) {
   const created = new Date(contact.created_at).toLocaleString("ru-RU");
   return `
-    <details class="contact-card">
+    <details class="contact-card" data-contact-id="${escapeHtml(contact.id)}" ${openIds.has(contact.id) ? "open" : ""}>
       <summary>
         <span class="contact-person">
           <strong>${escapeHtml(contact.name)}</strong>
@@ -90,22 +94,64 @@ function contactCard(contact) {
 }
 
 async function loadContacts() {
+  if (!adminAuthorization) {
+    contactsLoading.classList.add("hidden");
+    contactsList.classList.add("hidden");
+    contactsEmpty.textContent = "Войдите как администратор, чтобы увидеть обращения.";
+    contactsEmpty.classList.remove("hidden");
+    return;
+  }
+  const openIds = new Set(
+    [...contactsList.querySelectorAll("details[open]")]
+      .map((element) => element.dataset.contactId),
+  );
   contactsLoading.classList.remove("hidden");
   contactsEmpty.classList.add("hidden");
   try {
-    const response = await fetch("/api/contacts");
+    const response = await fetch("/api/contacts", {
+      headers: { Authorization: adminAuthorization },
+    });
+    if (response.status === 401) {
+      throw new Error("Unauthorized");
+    }
     if (!response.ok) throw new Error("Contacts unavailable");
     const contacts = await response.json();
-    contactsList.innerHTML = contacts.map(contactCard).join("");
+    contactsList.innerHTML = contacts
+      .map((contact) => contactCard(contact, openIds))
+      .join("");
     contactsList.classList.toggle("hidden", contacts.length === 0);
     contactsEmpty.classList.toggle("hidden", contacts.length !== 0);
-  } catch {
+  } catch (error) {
     contactsList.classList.add("hidden");
-    contactsEmpty.textContent = "Не удалось загрузить обращения.";
+    if (error.message === "Unauthorized") {
+      logoutAdmin();
+      contactsEmpty.textContent = "Неверный логин или пароль.";
+    } else {
+      contactsEmpty.textContent = "Не удалось загрузить обращения.";
+    }
     contactsEmpty.classList.remove("hidden");
   } finally {
     contactsLoading.classList.add("hidden");
   }
+}
+
+function startPolling() {
+  clearInterval(contactsPoller);
+  if (adminAuthorization) {
+    contactsPoller = setInterval(loadContacts, 2000);
+  }
+}
+
+function renderAdminState() {
+  adminLogin.classList.toggle("hidden", Boolean(adminAuthorization));
+  adminSession.classList.toggle("hidden", !adminAuthorization);
+  startPolling();
+}
+
+function logoutAdmin() {
+  adminAuthorization = null;
+  sessionStorage.removeItem("adminAuthorization");
+  renderAdminState();
 }
 
 async function checkHealth() {
@@ -131,6 +177,16 @@ document.querySelector("#fill-example").addEventListener("click", () => {
 
 comment.addEventListener("input", updateCommentCount);
 document.querySelector("#refresh-contacts").addEventListener("click", loadContacts);
+document.querySelector("#admin-logout").addEventListener("click", logoutAdmin);
+
+adminLogin.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const fields = new FormData(adminLogin);
+  adminAuthorization = `Basic ${btoa(`${fields.get("username")}:${fields.get("password")}`)}`;
+  sessionStorage.setItem("adminAuthorization", adminAuthorization);
+  renderAdminState();
+  await loadContacts();
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -145,7 +201,7 @@ form.addEventListener("submit", async (event) => {
     });
     const payload = await response.json();
     showResult(response, payload);
-    if (response.ok) await loadContacts();
+    if (response.ok && adminAuthorization) await loadContacts();
   } catch {
     showResult(
       { ok: false, status: 0, statusText: "Network Error" },
@@ -159,4 +215,5 @@ form.addEventListener("submit", async (event) => {
 
 updateCommentCount();
 checkHealth();
+renderAdminState();
 loadContacts();

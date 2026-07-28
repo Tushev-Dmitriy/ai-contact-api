@@ -110,11 +110,14 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
                 "comment": "  I would like to discuss a backend project.  ",
             },
         )
-        list_response = await client.get("/api/contacts")
+        list_response = await client.get(
+            "/api/contacts",
+            auth=("admin", "admin"),
+        )
 
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
-    assert response.json()["category"] == "job_offer"
+    assert "category" not in response.json()
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
     listed = list_response.json()[0]
@@ -138,6 +141,29 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
     assert stored.source_ip_hash is not None
     assert stored.user_agent == "integration-test"
     await engine.dispose()
+
+
+async def test_contacts_endpoint_requires_admin_credentials(tmp_path: Path) -> None:
+    settings = Settings(
+        app_env="test",
+        app_log_file=tmp_path / "app.log",
+        ip_hash_salt="integration-test-salt",
+    )
+    application = create_app(settings)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=application),
+        base_url="http://test",
+    ) as client:
+        missing = await client.get("/api/contacts")
+        invalid = await client.get(
+            "/api/contacts",
+            auth=("admin", "wrong"),
+        )
+
+    assert missing.status_code == 401
+    assert invalid.status_code == 401
+    assert missing.headers["WWW-Authenticate"] == 'Basic realm="AI Contact Admin"'
 
 
 async def test_contact_endpoint_returns_validation_error(tmp_path: Path) -> None:
@@ -267,7 +293,7 @@ async def test_contact_is_accepted_when_ai_uses_fallback(tmp_path: Path) -> None
         )
 
     assert response.status_code == 202
-    assert response.json()["category"] == "other"
+    assert "category" not in response.json()
     async with session_factory() as session:
         stored = (await session.scalars(select(ContactRequest))).one()
     assert stored.ai_provider_status is ProviderStatus.UNAVAILABLE

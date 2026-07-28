@@ -62,14 +62,14 @@
           <div id="empty-result" class="empty-result">
             <div class="brackets">{ }</div>
             <h2>Ответ появится здесь</h2>
-            <p>API вернёт идентификатор запроса и категорию, определённую AI или безопасным fallback.</p>
+            <p>API сразу вернёт идентификатор. AI-анализ и письма обновятся в админском списке автоматически.</p>
           </div>
           <div id="result" class="result hidden" aria-live="polite">
             <div id="result-badge" class="result-badge">202 Accepted</div>
             <h2 id="result-title">Обращение принято</h2>
             <dl>
               <div><dt>Request ID</dt><dd id="request-id">—</dd></div>
-              <div><dt>Категория</dt><dd id="category">—</dd></div>
+              <div><dt>AI</dt><dd id="category">обрабатывается…</dd></div>
               <div><dt>Сообщение</dt><dd id="message">—</dd></div>
             </dl>
             <pre id="raw-response"></pre>
@@ -90,6 +90,19 @@
             <h2>Все обращения</h2>
           </div>
           <button id="refresh-contacts" class="text-button" type="button">Обновить</button>
+        </div>
+        <form id="admin-login" class="admin-login">
+          <div>
+            <strong>Админ-доступ</strong>
+            <small>Локально по умолчанию: admin / admin</small>
+          </div>
+          <input name="username" autocomplete="username" value="admin" aria-label="Логин администратора" required>
+          <input name="password" type="password" autocomplete="current-password" value="admin" aria-label="Пароль администратора" required>
+          <button class="primary-button" type="submit">Войти</button>
+        </form>
+        <div id="admin-session" class="admin-session hidden">
+          <span>Администратор авторизован · автообновление каждые 2 секунды</span>
+          <button id="admin-logout" class="text-button" type="button">Выйти</button>
         </div>
         <div id="contacts-loading" class="contacts-empty">Загружаем обращения…</div>
         <div id="contacts-empty" class="contacts-empty hidden">Обращений пока нет.</div>

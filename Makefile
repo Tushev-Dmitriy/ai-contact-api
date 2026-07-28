@@ -1,4 +1,4 @@
-.PHONY: install run test lint format typecheck migrate docker-up docker-down
+.PHONY: install run test lint format typecheck migrate model docker-up docker-down
 
 install:
 	uv sync --all-groups
@@ -20,6 +20,10 @@ typecheck:
 
 migrate:
 	uv run alembic upgrade head
+
+model:
+	mkdir -p models
+	test -f models/qwen2.5-1.5b-instruct-q4_k_m.gguf || curl -L --fail --retry 3 -o models/qwen2.5-1.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
 docker-up:
 	docker compose up --build

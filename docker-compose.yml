@@ -11,10 +11,12 @@ x-api-environment: &api-environment
   REDIS_URL: redis://redis:6379/0
   RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-5}
   RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-900}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
   AI_ENABLED: "true"
   AI_API_KEY: local-llamacpp
   AI_BASE_URL: http://llamacpp:8080/v1
-  AI_MODEL: local-smollm2-135m
+  AI_MODEL: local-qwen2.5-1.5b
   AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-120}
   EMAIL_ENABLED: "true"
   EMAIL_PROVIDER: smtp
@@ -67,8 +69,8 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     command:
       [
-        "-hf",
-        "unsloth/SmolLM2-135M-Instruct-GGUF:Q4_K_M",
+        "-m",
+        "/models/qwen2.5-1.5b-instruct-q4_k_m.gguf",
         "--host",
         "0.0.0.0",
         "--port",
@@ -80,6 +82,7 @@ services:
       ]
     volumes:
       - llama_cache:/root/.cache
+      - ./models:/models:ro
     restart: unless-stopped
 
   migrate:

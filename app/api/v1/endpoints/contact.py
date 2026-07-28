@@ -6,19 +6,20 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.core.security import require_admin
 from app.db.dependencies import get_session
 from app.db.models.contact_request import ContactRequest
 from app.integrations.ai.base import AIProvider
 from app.middleware.request_context import client_ip
 from app.repositories.contact import ContactRequestRepository
 from app.schemas.contact import ContactAccepted, ContactCreate, ContactDetail
-from app.services.contact import ContactService
+from app.services.contact import ContactService, process_contact
 from app.services.dependencies import (
     get_ai_provider,
     get_email_service,
     get_rate_limiter,
 )
-from app.services.email import EmailService, process_contact_emails
+from app.services.email import EmailService
 from app.services.rate_limit import RedisRateLimiter
 from app.utils.pii import hash_ip
 
@@ -28,6 +29,7 @@ router = APIRouter(tags=["contact"])
 @router.get(
     "/contacts",
     response_model=list[ContactDetail],
+    dependencies=[Depends(require_admin)],
     summary="List recent contact requests",
 )
 async def list_contacts(
@@ -70,20 +72,16 @@ async def create_contact(
         user_agent=request.headers.get("user-agent"),
     )
     await session.commit()
-    await service.classify(contact, payload.comment)
-    await session.commit()
 
     session_factory = cast(
         async_sessionmaker[AsyncSession],
         request.app.state.session_factory,
     )
     background_tasks.add_task(
-        process_contact_emails,
+        process_contact,
         contact.id,
         session_factory,
+        ai_provider,
         email_service,
     )
-    return ContactAccepted(
-        request_id=contact.id,
-        category=contact.category.value if contact.category else None,
-    )
+    return ContactAccepted(request_id=contact.id)

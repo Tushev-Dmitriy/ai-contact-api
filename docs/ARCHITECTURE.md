@@ -25,14 +25,14 @@ client
   -> schema validation
   -> Redis rate limit
   -> repository: INSERT + COMMIT
-  -> AI provider -> validated result/fallback -> COMMIT
   -> HTTP 202 + BackgroundTasks
-  -> owner email and user email
-  -> repository: delivery/processing statuses
+      -> AI provider -> validated result/fallback -> COMMIT
+      -> owner email and user email
+      -> repository: delivery/processing statuses
 ```
 
-Обращение коммитится до внешнего AI-вызова, поэтому сбой AI не теряет данные.
-Email выполняется после ответа и использует новую DB-сессию, не request-scoped
+Обращение коммитится до ответа и внешнего AI-вызова, поэтому сбой AI не теряет данные.
+AI и email выполняются после ответа и используют новую DB-сессию, не request-scoped
 сессию. Две отправки независимы; итог может быть `completed` или `partial`.
 
 ## Зависимости и деградация

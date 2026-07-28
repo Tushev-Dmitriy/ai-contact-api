@@ -94,6 +94,8 @@ def test_production_accepts_explicit_database_and_long_ip_hash_salt() -> None:
         app_env="production",
         database_url="postgresql+asyncpg://service@db/contact",
         ip_hash_salt="x" * 32,
+        admin_username="reviewer",
+        admin_password="changed-password",
     )
 
     assert settings.app_env == "production"

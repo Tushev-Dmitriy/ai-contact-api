@@ -27,6 +27,21 @@ Write summary from the actual comment, not from these instructions or field
 descriptions. Example for "Urgently need a developer to build a shop":
 {"category":"project_request","sentiment":"neutral","urgency":"high",
 "summary":"Urgent request to build an online shop."}
+Category rules:
+- job_offer: the sender offers the developer a job or employment
+- project_request: the sender wants a site, application, API, shop, or other
+  software built or estimated
+- collaboration: partnership without a specific paid development request
+- support: help with an existing product, defect, account, or technical issue
+- feedback: praise, complaint, or opinion without asking to build something
+- spam: advertising, scams, or irrelevant bulk content
+- other: only when none of the definitions fits
+Sentiment describes the writer's emotional tone, not whether the opportunity is
+good. A factual request is neutral. Urgency is high when the writer explicitly
+says срочно, urgent, immediately, or gives a near deadline.
+Russian example for "Срочно нужен разработчик для интернет-магазина":
+{"category":"project_request","sentiment":"neutral","urgency":"high",
+"summary":"Срочный запрос на разработку интернет-магазина."}
 Do not return Markdown, prose, code fences, or additional fields."""
 
 CLASSIFICATION_JSON_SCHEMA = {

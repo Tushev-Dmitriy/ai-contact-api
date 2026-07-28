@@ -90,6 +90,20 @@ pre { max-height: 190px; margin: 0; padding: 15px; overflow: auto; border: 1px s
 .tools small { color: var(--muted); }
 
 .contacts-panel { margin-top: 16px; border: 1px solid var(--line); }
+.admin-login {
+  display: grid; grid-template-columns: minmax(180px, 1fr) 180px 180px 110px;
+  gap: 12px; align-items: center; margin-bottom: 18px; padding: 16px;
+  border: 1px solid var(--line); background: #0d1014;
+}
+.admin-login div { display: grid; gap: 4px; }
+.admin-login small { color: var(--muted); }
+.admin-login input, .admin-login .primary-button { height: 44px; margin: 0; padding: 10px 12px; }
+.admin-session {
+  display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  margin-bottom: 18px; padding: 13px 16px; color: var(--success);
+  border: 1px solid currentColor; font-size: 13px;
+}
+.admin-session.hidden, .admin-login.hidden { display: none; }
 .contacts-empty { padding: 42px 0; color: var(--muted); text-align: center; }
 .contacts-list { display: grid; gap: 12px; }
 .contact-card { border: 1px solid var(--line); background: #0d1014; }
@@ -126,4 +140,5 @@ pre { max-height: 190px; margin: 0; padding: 15px; overflow: auto; border: 1px s
   .contact-card summary { grid-template-columns: 1fr auto; }
   .contact-card summary > :not(.contact-person) { display: none; }
   .contact-details, .ai-grid { grid-template-columns: 1fr; }
+  .admin-login { grid-template-columns: 1fr; }
 }

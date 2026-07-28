@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     rate_limit_requests: PositiveInt = 5
     rate_limit_window_seconds: PositiveInt = 900
+    admin_username: str = "admin"
+    admin_password: str = "admin"
 
     ai_enabled: bool = False
     ai_api_key: str | None = None
@@ -122,6 +124,10 @@ class Settings(BaseSettings):
                 raise ValueError("IP_HASH_SALT must be changed in production")
             if len(self.ip_hash_salt) < 32:
                 raise ValueError("IP_HASH_SALT must contain at least 32 characters")
+            if (self.admin_username, self.admin_password) == ("admin", "admin"):
+                raise ValueError(
+                    "Default admin credentials must be changed in production"
+                )
 
         return self
 
