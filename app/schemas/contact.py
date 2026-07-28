@@ -11,7 +11,20 @@ PHONE_CHARACTERS = re.compile(r"^[+\d\s().-]+$")
 class ContactCreate(BaseModel):
     """Validated and normalized contact request input."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "Anna Ivanova",
+                    "phone": "+7 (912) 345-67-89",
+                    "email": "anna@example.com",
+                    "comment": "I would like to discuss a backend development project.",
+                }
+            ]
+        },
+    )
 
     name: str = Field(min_length=2, max_length=100)
     phone: str = Field(min_length=7, max_length=16)
@@ -58,6 +71,19 @@ class ContactCreate(BaseModel):
 
 class ContactAccepted(BaseModel):
     """Public response after a contact request is persisted."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "request_id": "f5a881fd-4bee-4c83-91b9-f204619db856",
+                    "status": "accepted",
+                    "message": "Contact request accepted for processing",
+                    "category": "project_request",
+                }
+            ]
+        }
+    )
 
     request_id: uuid.UUID
     status: str = "accepted"

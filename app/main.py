@@ -80,6 +80,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="AI Contact API",
         description="API for portfolio contact requests with AI classification.",
         version="0.1.0",
+        contact={
+            "name": "AI Contact API maintainers",
+            "url": "https://github.com/Tushev-Dmitriy/ai-contact-api",
+        },
         lifespan=lifespan,
     )
 

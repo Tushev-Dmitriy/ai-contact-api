@@ -158,8 +158,8 @@
 | Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | done |
 | Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | done |
 | Quality and CI | uv, Ruff, mypy, pytest, pre-commit, Actions | `pyproject.toml`, `uv.lock`, `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | done |
-| Documentation and API examples | README, focused docs, Postman collection | `README.md`, `docs/`, `postman/` | in progress |
-| Deployment readiness | Platform-neutral container guide and env/migration/health instructions | `docs/DEPLOYMENT.md`, `README.md` | planned |
+| Documentation and API examples | README, focused docs, Postman collection | `README.md`, `docs/`, `postman/` | done |
+| Deployment readiness | Platform-neutral container guide and env/migration/health instructions | `docs/DEPLOYMENT.md`, `README.md` | done |
 | Prometheus metrics | Не входит в обязательный scope | возможный `app/api/metrics.py` | optional |
 | Frontend | Только после backend, отдельным решением | вне текущего scope | optional |
 
