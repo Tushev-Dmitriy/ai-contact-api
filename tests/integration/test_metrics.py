@@ -79,7 +79,7 @@ async def test_metrics_endpoint_is_hidden_without_key(tmp_path: Path) -> None:
         transport=ASGITransport(app=application),
         base_url="http://test",
     ) as client:
-        response = await client.get("/api/v1/metrics")
+        response = await client.get("/api/metrics")
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "not_found"
@@ -113,11 +113,11 @@ async def test_metrics_endpoint_requires_valid_key_and_returns_data(
         base_url="http://test",
     ) as client:
         denied = await client.get(
-            "/api/v1/metrics",
+            "/api/metrics",
             headers={"X-API-Key": "wrong"},
         )
         allowed = await client.get(
-            "/api/v1/metrics",
+            "/api/metrics",
             headers={"X-API-Key": "metrics-secret"},
         )
 

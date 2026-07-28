@@ -101,7 +101,7 @@ async def test_contact_endpoint_persists_normalized_request(tmp_path: Path) -> N
         base_url="http://test",
     ) as client:
         response = await client.post(
-            "/api/v1/contact",
+            "/api/contact",
             headers={"user-agent": "integration-test"},
             json={
                 "name": "  Ada   Lovelace ",
@@ -158,7 +158,7 @@ async def test_contact_endpoint_returns_validation_error(tmp_path: Path) -> None
         base_url="http://test",
     ) as client:
         response = await client.post(
-            "/api/v1/contact",
+            "/api/contact",
             json={
                 "name": "A",
                 "phone": "123",
@@ -203,7 +203,7 @@ async def test_contact_endpoint_returns_429_when_rate_limit_is_exceeded(
         base_url="http://test",
     ) as client:
         response = await client.post(
-            "/api/v1/contact",
+            "/api/contact",
             json={
                 "name": "Ada Lovelace",
                 "phone": "+442079460123",
@@ -248,7 +248,7 @@ async def test_contact_is_accepted_when_ai_uses_fallback(tmp_path: Path) -> None
         base_url="http://test",
     ) as client:
         response = await client.post(
-            "/api/v1/contact",
+            "/api/contact",
             json={
                 "name": "Ada Lovelace",
                 "phone": "+442079460123",

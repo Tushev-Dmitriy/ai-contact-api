@@ -34,7 +34,7 @@ async def test_liveness_does_not_require_dependencies(tmp_path: Path) -> None:
         transport=ASGITransport(app=application),
         base_url="http://test",
     ) as client:
-        response = await client.get("/api/v1/health/live")
+        response = await client.get("/api/health/live")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -64,7 +64,7 @@ async def test_readiness_is_degraded_but_ready_when_only_redis_is_down(
         transport=ASGITransport(app=application),
         base_url="http://test",
     ) as client:
-        response = await client.get("/api/v1/health/ready")
+        response = await client.get("/api/health/ready")
 
     assert response.status_code == 200
     assert response.json()["status"] == "degraded"
@@ -93,7 +93,7 @@ async def test_readiness_returns_503_when_postgres_is_down(tmp_path: Path) -> No
         transport=ASGITransport(app=application),
         base_url="http://test",
     ) as client:
-        response = await client.get("/api/v1/health/ready")
+        response = await client.get("/api/health/ready")
 
     assert response.status_code == 503
     assert response.json()["checks"]["postgres"]["status"] == "down"

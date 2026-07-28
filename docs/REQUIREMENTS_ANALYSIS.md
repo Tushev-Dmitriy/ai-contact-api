@@ -17,7 +17,7 @@
 ### 2.1. API и поток обработки
 
 - Реализовать backend без Django и без frontend до завершения его тестирования.
-- Предоставить `POST /api/v1/contact` с полями `name`, `phone`, `email`,
+- Предоставить `POST /api/contact` с полями `name`, `phone`, `email`,
   `comment`.
 - После trim имя должно содержать 2–100 символов, комментарий — 10–3000;
   email должен быть валидным, телефон — разумно валидироваться без привязки к
@@ -153,7 +153,7 @@
 | Error contract | Typed app exceptions and global handlers | `app/core/exceptions.py`, `app/main.py` | done |
 | Health/readiness | Separate live/ready handlers and dependency checks | `app/api/v1/endpoints/health.py` | done |
 | Protected statistics | Aggregate SQL queries and constant-time API-key check; hidden when disabled | `app/api/v1/endpoints/metrics.py`, `app/repositories/metrics.py`, `app/core/security.py` | done |
-| CORS and OpenAPI | Settings-driven middleware and FastAPI metadata/examples | `app/core/config.py`, `app/main.py`, endpoint schemas | planned |
+| CORS and OpenAPI | Settings-driven middleware and FastAPI metadata/examples | `app/core/config.py`, `app/main.py`, endpoint schemas | done |
 | Central configuration | `BaseSettings`, env profiles/validation, safe example | `app/core/config.py`, `.env.example` | done |
 | Docker/Compose | Non-root slim image, explicit migration command, health checks | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `scripts/` | done |
 | Automated tests | Unit fakes and API dependency overrides; no live providers | `tests/unit/`, `tests/integration/` | planned |
@@ -165,9 +165,10 @@
 
 ## 5. Неоднозначности, противоречия и решения
 
-1. **Маршрут:** PDF требует `/api/contact`, расширенное ТЗ —
-   `/api/v1/contact`. Канонический маршрут — версионированный. Алиас старого
-   пути не добавляется без требования: он удваивает поверхность API.
+1. **Маршрут:** PDF требует `/api/contact`, а расширенное ТЗ предлагало
+   `/api/v1/contact`. По прямому решению заказчика от 28 июля 2026 года
+   каноническим выбран точный маршрут PDF: `/api/contact`. Health и metrics
+   аналогично публикуются под `/api/health` и `/api/metrics`.
 2. **Хранилище:** PDF допускает файлы и не требует БД; расширенное ТЗ требует
    PostgreSQL и Redis. Используются PostgreSQL/Redis как более строгий вариант.
 3. **Rate limiting:** PDF допускает env/файлы, что само по себе не является

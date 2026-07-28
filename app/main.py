@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 from redis.asyncio import Redis
+from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import Receive, Scope, Send
 
@@ -110,6 +111,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         RequestContextMiddleware,
         ip_hash_salt=application_settings.ip_hash_salt,
         trust_proxy_headers=application_settings.trust_proxy_headers,
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=application_settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
+        expose_headers=["X-Request-ID"],
     )
     application.state.settings = application_settings
     application.include_router(api_v1_router)

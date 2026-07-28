@@ -64,7 +64,7 @@ async def test_database_error_returns_safe_503_contract(tmp_path: Path) -> None:
         base_url="http://test",
     ) as client:
         response = await client.post(
-            "/api/v1/contact",
+            "/api/contact",
             json={
                 "name": "Ada Lovelace",
                 "phone": "+442079460123",
